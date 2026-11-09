@@ -35,7 +35,6 @@ st.markdown(
 # -------------------------------
 # Sidebar – parameter inputs
 # -------------------------------
-st.sidebar.header("Modellparameter")
 
 default_params = get_default_params(
     n_docs=len(st.session_state.get("cleaned_data", [])),
@@ -43,6 +42,9 @@ default_params = get_default_params(
 )
 
 with st.sidebar:
+    use_naming, naming_model = naming_options()
+    st.divider()
+    st.header("Modellparameter")
     # Embedding & language
     embedding_model_name, language = language_and_embedding(default_params)
     # UMAP hyper-parameters
@@ -55,7 +57,6 @@ with st.sidebar:
     selected_reprs = representation_inputs(default_params)
     # Top-N words shown per topic
     top_n_words = top_n_words_input(default_params)
-    use_naming, naming_model = naming_options()
 
 
 # -------------------------------

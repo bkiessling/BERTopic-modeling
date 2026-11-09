@@ -16,16 +16,19 @@ def openai_key():
 
 
 def naming_options():
+    st.subheader('OpenAI-Verbindung')
     key_present = bool(openai_key())
+    st.caption('API-Key: erkannt; Zugriff noch nicht geprüft.' if key_present else 'API-Key: nicht hinterlegt.')
     enabled = st.checkbox('Themen mit OpenAI benennen (nur Keywords)',
                           value=False, disabled=not key_present, key='use_openai_naming')
-    st.caption('Übertragen werden pro Thema bis zu zehn Keywords und die Themen-ID; keine Originaltexte, Dokumentauszüge, Dokument-IDs oder Embeddings. Keywords können vertrauliche Begriffe enthalten. API-Nutzung kostet zusätzlich; ChatGPT Pro deckt sie nicht ab.')
-    if not key_present:
-        st.caption('Kein API-Key gefunden. OPENAI_API_KEY als Umgebungsvariable oder in .streamlit/secrets.toml hinterlegen und die App neu starten.')
-    else:
-        st.caption('API-Key vorhanden. Gültigkeit, Modellzugriff und Guthaben werden erst beim Benennen geprüft.')
-    model = st.text_input('OpenAI-Modell für Themennamen', value=DEFAULT_NAMING_MODEL,
-                          disabled=not enabled or not key_present, key='openai_naming_model')
+    with st.expander('Einrichtung und Datenübertragung'):
+        st.caption('Übertragen werden pro Thema bis zu zehn Keywords und die Themen-ID; keine Originaltexte, Dokumentauszüge, Dokument-IDs oder Embeddings. Keywords können vertrauliche Begriffe enthalten. API-Nutzung kostet zusätzlich; ChatGPT Pro deckt sie nicht ab.')
+        if not key_present:
+            st.caption('OPENAI_API_KEY als Umgebungsvariable oder in .streamlit/secrets.toml hinterlegen und die App neu starten.')
+        else:
+            st.caption('Gültigkeit, Modellzugriff und Guthaben werden erst beim Benennen geprüft.')
+        model = st.text_input('OpenAI-Modell für Themennamen', value=DEFAULT_NAMING_MODEL,
+                              disabled=not enabled or not key_present, key='openai_naming_model')
     return enabled and key_present, model.strip()
 
 
