@@ -1,19 +1,19 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-from modules.modeling.parameter_inputs import (
+import logging
+from modules.ui.modeling_inputs import (
     umap_inputs,
     hdbscan_inputs,
     vectorizer_inputs,
     language_and_embedding,
     representation_inputs,
-    get_default_params,
     top_n_words_input,
 )
 from modules.modeling.train_model import train_bertopic_model
 from modules.ui.explanations import show_model_explanations
 from sentence_transformers import SentenceTransformer
-from torch import device as torch_device, backends
+import torch
+from modules.modeling.configuration import TrainingConfig, get_default_params
+from modules.ui.analysis_state import AnalysisState
 
 
 # -------------------------------
@@ -26,7 +26,7 @@ st.markdown("# Topic-Modeling mit BERTopic")
 st.subheader("Modell konfigurieren")
 st.markdown(
     "Definiere die Modellparameter in der Sidebar. "
-    "Die Voreinstellungen basieren auf deinem Upload und den gewählten Textfeldern."
+    "Die Clusterparameter berücksichtigen die Textanzahl. Wähle Sprache und Embedding-Modell bewusst aus."
 )
 
 
@@ -60,13 +60,8 @@ with st.sidebar:
 # -------------------------------
 @st.cache_resource
 def load_embedding_model(model_name):
-    use_cpu = "jina" in model_name.lower() or not backends.mps.is_available()
-    device_str = "cpu" if use_cpu else "mps"
-    return SentenceTransformer(
-        model_name,
-        device=torch_device(device_str),
-        trust_remote_code="jina" in model_name
-    )
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    return SentenceTransformer(model_name, device=device, trust_remote_code=False)
 
 
 if "cleaned_data" not in st.session_state or st.session_state["cleaned_data"].empty:
@@ -95,66 +90,45 @@ model_params = {
     "top_n_words": top_n_words,
 }
 
-# Reset training flag if parameters changed
-if "last_model_params" in st.session_state:
-    if st.session_state["last_model_params"] != model_params:
-        st.session_state["model_trained"] = False
-st.session_state["last_model_params"] = model_params
+config = TrainingConfig.from_dict(model_params)
+cleaned_df = st.session_state["cleaned_data"]
+doc_list = cleaned_df[st.session_state["text_column"]].tolist()
+validation_errors = config.validate(doc_list)
+for message in validation_errors:
+    st.error(message)
 
+if st.button("Modell trainieren", disabled=bool(validation_errors)):
+    progress_bar = st.progress(0)
+    status_text = st.empty()
 
-# -------------------------------
-# Train model button + progress
-# -------------------------------
-if st.button("Modell trainieren"):
-    if "cleaned_data" not in st.session_state:
-        st.error("Keine bereinigten Daten vorhanden. Zuerst Daten hochladen und bereinigen.")
-        st.stop()
+    def report(percent, message):
+        progress_bar.progress(percent)
+        status_text.text(message)
 
-    cleaned_df: pd.DataFrame = st.session_state["cleaned_data"]
-    doc_list = cleaned_df[st.session_state["text_column"]].tolist()
-    sample_info = st.session_state.get("sample_percentage", 100)
-
-    # Prevent duplicate training if already done
-    if st.session_state.get("model_trained"):
-        st.info("✅ Modell wurde bereits trainiert. Überspringe erneutes Training.")
-    else:
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-
-        st.write(f"Training startet mit {len(doc_list)} Dokumenten "
-                 f"({sample_info}% der ursprünglichen Daten).")
-
-        # Load model only when training is requested.
+    try:
+        status_text.text("Lade Embedding-Modell …")
         embedding_model = load_embedding_model(embedding_model_name)
-
-        topic_model, topic_info = train_bertopic_model(
-            documents=doc_list,
-            params=model_params,
-            embedding_model=embedding_model,
-            status=status_text,
-            progress=progress_bar,
+        result = train_bertopic_model(doc_list, config, embedding_model, on_progress=report)
+        analysis = AnalysisState(
+            result=result,
+            ids=cleaned_df[st.session_state["id_column"]].tolist(),
+            text_columns=st.session_state.get("original_text_columns", ["Textbeitrag"]),
+            preprocessing={
+                "sample_percentage": st.session_state.get("sample_percentage", 100),
+                "custom_stopwords": st.session_state.get("custom_stopwords", ""),
+                "cleaning": "lowercase; remove URLs, mentions, digits, punctuation; collapse whitespace",
+            },
         )
-
-        # Save docs AND their matching IDs for the Analyse page
-        st.session_state.update(
-            {
-                "topic_model": topic_model,
-                "topic_info": topic_info.copy(),
-                "topic_info_original": topic_info.copy(),
-                "model_params": model_params,
-                "display_topics": None,
-                "original_topics": None,
-                "original_topic_info": None,
-                "original_display_topics": None,
-                "original_outlier_count": int((np.array(topic_model.topics_) == -1).sum()),
-                "docs": doc_list,
-                "ids": cleaned_df[st.session_state["id_column"]].tolist(),  # <-- add this line
-                "model_trained": True,
-            }
-        )
-
-        progress_bar.progress(100)
-        status_text.text("✅ Modelltraining abgeschlossen.")
+    except ValueError as exc:
+        progress_bar.empty()
+        st.error(str(exc))
+    except Exception:
+        logging.getLogger(__name__).exception("Modelltraining fehlgeschlagen")
+        progress_bar.empty()
+        st.error("Das Modell konnte nicht geladen oder trainiert werden. Bitte Netzwerkzugriff, installierte Abhängigkeiten und Serverprotokoll prüfen.")
+    else:
+        st.session_state["analysis"] = analysis
+        st.session_state.pop("topic_barchart_selection", None)
         st.switch_page("pages/3_Analyse.py")
 
 

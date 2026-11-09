@@ -1,12 +1,16 @@
 """Exercise real BERTopic training and all analysis charts through Streamlit."""
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 import numpy as np
 import pandas as pd
 from bertopic.backend import BaseEmbedder
 from streamlit.testing.v1 import AppTest
 from modules.modeling.train_model import train_bertopic_model
-from modules.analysis.outlier_handler import reduce_outliers, restore_outliers
+from modules.analysis.outlier_handler import reduce_outliers
+from modules.modeling.configuration import TrainingConfig
+from modules.modeling.train_model import TrainingResult
+from modules.ui.analysis_state import AnalysisState
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -14,10 +18,6 @@ class OfflineEncoder(BaseEmbedder):
     def encode(self, documents, **kwargs):
         rng = np.random.default_rng(42)
         return np.vstack([np.eye(3)[i // 20] + rng.normal(0, .03, 3) for i in range(len(documents))])
-
-class Progress:
-    def text(self, value): pass
-    def progress(self, value): pass
 
 class AnalysisWorkflowTests(unittest.TestCase):
     @classmethod
@@ -32,19 +32,33 @@ class AnalysisWorkflowTests(unittest.TestCase):
             'vectorizer': {'ngram_range': (1, 1), 'min_df': 1, 'max_df': .95},
             'representation_models': [], 'top_n_words': 5,
         }
-        cls.model, cls.info = train_bertopic_model(cls.docs, cls.params, OfflineEncoder(), Progress(), Progress())
+        cls.config = TrainingConfig.from_dict(cls.params)
+        cls.result = train_bertopic_model(cls.docs, cls.config, OfflineEncoder())
+        cls.model, cls.info = cls.result.model, cls.result.topic_info
         cls.embeddings = OfflineEncoder().encode(cls.docs)
+
+    def test_train_button_navigates_to_analysis_without_import_error(self):
+        app = AppTest.from_file(str(ROOT / 'app.py'))
+        for key, value in {
+            'cleaned_data': pd.DataFrame({'id': range(60), 'text': self.docs}),
+            'id_column': 'id', 'text_column': 'text', 'original_text_columns': ['Textbeitrag'],
+        }.items():
+            app.session_state[key] = value
+        with patch('sentence_transformers.SentenceTransformer', return_value=OfflineEncoder()) as loader:
+            app.run(timeout=60)
+            app.switch_page('pages/2_Modellierung.py').run(timeout=60)
+            app.selectbox(key='model_language').select('Englisch').run(timeout=30)
+            app.multiselect[0].set_value([]).run(timeout=30)
+            app.button[0].click().run(timeout=90)
+            self.assertFalse(app.exception, list(app.exception))
+            self.assertEqual(len(app.get('plotly_chart')), 3)
+            self.assertEqual(len(app.get('download_button')), 1)
+            self.assertEqual(len(app.session_state['analysis'].result.documents), 60)
+            loader.assert_called_once()
 
     def test_analysis_renders_all_three_visualizations_and_reruns(self):
         app = AppTest.from_file(str(ROOT / 'pages/3_Analyse.py'))
-        state = {
-            'topic_model': self.model, 'topic_info': self.info,
-            'docs': self.docs, 'ids': [i//2 for i in range(60)], 'id_column': 'id',
-            'cleaned_data': pd.DataFrame({'id': [i//2 for i in range(60)], 'text': self.docs}),
-            'embeddings': self.embeddings, 'model_params': self.params,
-        }
-        for key, value in state.items():
-            app.session_state[key] = value
+        app.session_state['analysis'] = AnalysisState(self.result, [i//2 for i in range(60)])
         app.run(timeout=90)
         self.assertFalse(app.exception, list(app.exception))
         self.assertEqual(len(app.get('plotly_chart')), 3)
@@ -68,11 +82,8 @@ class AnalysisWorkflowTests(unittest.TestCase):
         info['Count'] = 2
         info['Representation'] = [['wort']]
         app = AppTest.from_file(str(ROOT / 'pages/3_Analyse.py'))
-        state = {'topic_model': model, 'topic_info': info,
-                 'docs': ['text eins', 'text zwei'], 'ids': [1, 2], 'id_column': 'id',
-                 'cleaned_data': pd.DataFrame({'id': [1, 2]}), 'embeddings': np.ones((2, 4))}
-        for key, value in state.items():
-            app.session_state[key] = value
+        result = TrainingResult(model, info, np.ones((2, 4)), ['text eins', 'text zwei'], self.config)
+        app.session_state['analysis'] = AnalysisState(result, [1, 2])
         app.run(timeout=30)
         self.assertFalse(app.exception, list(app.exception))
         self.assertEqual(len(app.get('plotly_chart')), 2)
@@ -85,7 +96,7 @@ class AnalysisWorkflowTests(unittest.TestCase):
     def test_no_outliers_is_a_noop(self):
         class Model:
             topics_ = [0, 0]
-        self.assertFalse(reduce_outliers(Model(), ['a', 'b'], np.eye(2), .1, 5, {}))
+        self.assertFalse(reduce_outliers(Model(), ['a', 'b'], np.eye(2), .1))
 
     def test_outlier_reset_restores_model_and_tables(self):
         class Model:
@@ -98,12 +109,14 @@ class AnalysisWorkflowTests(unittest.TestCase):
                 ids, counts = np.unique(self.topics_, return_counts=True)
                 return pd.DataFrame({'Topic': ids, 'Count': counts, 'Name': ['test']*len(ids),
                                      'Representation': [['test']]*len(ids)})
-        model, state = Model(), {}
-        self.assertTrue(reduce_outliers(model, ['a','b','c'], np.eye(3), .1, 5, state))
+        model = Model()
+        result = TrainingResult(model, model.get_topic_info(), np.eye(3), ['a', 'b', 'c'], self.config)
+        state = AnalysisState(result, [1, 2, 3])
+        self.assertTrue(state.reduce_outliers(.1))
         self.assertEqual(model.topics_, [0, 0, 0])
-        self.assertTrue(restore_outliers(model, ['a','b','c'], 5, state))
+        self.assertTrue(state.restore_outliers())
         self.assertEqual(model.topics_, [-1, 0, 0])
-        self.assertEqual(state['topic_info'].Topic.tolist(), [-1, 0])
-        self.assertFalse(restore_outliers(model, ['a','b','c'], 5, state))
+        self.assertEqual(result.topic_info.Topic.tolist(), [-1, 0])
+        self.assertFalse(state.restore_outliers())
 
 if __name__ == '__main__': unittest.main()

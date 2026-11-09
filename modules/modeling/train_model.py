@@ -1,145 +1,79 @@
-# modules/modeling/train_model.py
+"""BERTopic training independent of Streamlit and browser-session state."""
+from dataclasses import dataclass
+from typing import Any, Callable
 import numpy as np
 import pandas as pd
-import streamlit as st
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
 from bertopic.vectorizers import ClassTfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
-from sentence_transformers import SentenceTransformer
+from nltk.corpus import stopwords
 import umap
 import hdbscan
-from nltk.corpus import stopwords
-from typing import List, Tuple, Dict, Any
+from modules.modeling.configuration import TrainingConfig
 
 
-def train_bertopic_model(
-    documents: List[str],
-    params: Dict[str, Any],
-    embedding_model: SentenceTransformer,
-    status: st.delta_generator.DeltaGenerator,
-    progress: st.delta_generator.DeltaGenerator,
-) -> Tuple[BERTopic, pd.DataFrame]:
-    """
-    Train a BERTopic model with custom parameters.
-    """
+@dataclass
+class TrainingResult:
+    model: Any
+    topic_info: pd.DataFrame
+    embeddings: np.ndarray
+    documents: list[str]
+    config: TrainingConfig
 
-    # -------------------------------
-    # Step 1: Generate sentence embeddings
-    # -------------------------------
 
-    status.text("1/6: Berechne Embeddings …")
+def train_bertopic_model(documents, config: TrainingConfig, embedding_model,
+                        on_progress: Callable[[int, str], None] | None = None) -> TrainingResult:
+    """Validate, train and return all artifacts; an optional callback reports progress."""
+    documents = list(documents)
+    errors = config.validate(documents)
+    if errors:
+        raise ValueError('\n'.join(errors))
+    report = on_progress or (lambda percent, message: None)
 
-    batch_size = 4 if "jina" in params["embedding_model"].lower() else 32
-
-    embeddings = embedding_model.encode(
-        documents,
-        batch_size=batch_size,
-        show_progress_bar=True
-    )
-
-    progress.progress(20)
-
-    # -------------------------------
-    # Step 2: Dimensionality reduction with UMAP
-    # -------------------------------
-
-    status.text("2/6: Reduziere Dimensionen (UMAP) …")
-
-    umap_model = umap.UMAP(
-        n_neighbors=params["umap"]["n_neighbors"],
-        n_components=params["umap"]["n_components"],
-        min_dist=params["umap"]["min_dist"],
-        metric="cosine",
-        random_state=42,
-        n_jobs=1
-    )
-    progress.progress(30)
-
-    # -------------------------------
-    # Step 3: Clustering with HDBSCAN
-    # -------------------------------
-
-    status.text("3/6: Clustere mit HDBSCAN …")
-
-    hdbscan_model = hdbscan.HDBSCAN(
-        min_cluster_size=params["hdbscan"]["min_cluster_size"],
-        metric="euclidean",
-        prediction_data=True
-    )
-    progress.progress(40)
-
-    # -------------------------------
-    # Step 4: Text vectorization using CountVectorizer
-    # -------------------------------
-
-    status.text("4/6: Baue Vektorisierung …")
-
-    language = params["language"].lower()
-
-    if language == "deutsch":
+    # Validate vocabulary before loading/encoding texts. Topic-level pruning may
+    # still fail later because BERTopic vectorizes aggregated topic documents.
+    if config.language == 'Deutsch':
         try:
-            stop_words = stopwords.words("german")
+            stop_words = stopwords.words('german')
         except LookupError as exc:
-            raise RuntimeError("NLTK-Stopwörter fehlen. Bitte python -m nltk.downloader stopwords ausführen.") from exc
+            raise ValueError('NLTK-Stopwörter fehlen. Bitte python -m nltk.downloader stopwords ausführen.') from exc
     else:
-        stop_words = "english"
+        stop_words = 'english'
+    vectorizer = CountVectorizer(ngram_range=config.ngram_range, min_df=config.min_df,
+                                 max_df=config.max_df, stop_words=stop_words)
+    try:
+        CountVectorizer(ngram_range=config.ngram_range, stop_words=stop_words).fit(documents)
+    except ValueError as exc:
+        raise ValueError('Nach Tokenisierung und Stopwortfilter bleiben keine verwendbaren Begriffe übrig.') from exc
 
-    vectorizer_model = CountVectorizer(
-        ngram_range=params["vectorizer"]["ngram_range"],
-        min_df=params["vectorizer"]["min_df"],
-        max_df=params["vectorizer"]["max_df"],
-        stop_words=stop_words
-    )
-
-    ctfidf_model = ClassTfidfTransformer(reduce_frequent_words=True)
-    progress.progress(50)
-
-    # -------------------------------
-    # Step 5: Configure representation models
-    # -------------------------------
-
-    status.text("5/6: Extrahiere Repräsentationen …")
-
-    top_n_words = params.get("top_n_words", 10)
-    representation_models = {}
-
-    if "KeyBERT" in params["representation_models"]:
-        representation_models["KeyBERT"] = KeyBERTInspired(top_n_words=top_n_words)
-    if "MMR" in params["representation_models"]:
-        representation_models["MMR"] = MaximalMarginalRelevance(top_n_words=top_n_words)
-
-    progress.progress(60)
-
-    # -------------------------------
-    # Step 6: Train BERTopic model
-    # -------------------------------
-
-    status.text("6/6: Trainiere Modell …")
-
-    topic_model = BERTopic(
-        embedding_model=embedding_model,
-        top_n_words=top_n_words,
-        umap_model=umap_model,
-        hdbscan_model=hdbscan_model,
-        vectorizer_model=vectorizer_model,
-        ctfidf_model=ctfidf_model,
-        representation_model=representation_models,
-        calculate_probabilities=True,
-        verbose=False
-    )
-
-    topics, _ = topic_model.fit_transform(documents, np.array(embeddings))
-    progress.progress(90)
-
-    topic_info = topic_model.get_topic_info()
-
-    st.session_state.update({
-        "embedding_model": embedding_model,
-        "docs": documents,
-        "embeddings": embeddings,
-        "vectorizer_model": vectorizer_model,
-        "representation_model": representation_models
-    })
-
-    return topic_model, topic_info
+    report(5, '1/6: Berechne Embeddings …')
+    embeddings = np.asarray(embedding_model.encode(documents, batch_size=32, show_progress_bar=False))
+    if embeddings.ndim != 2 or embeddings.shape[0] != len(documents) or not np.isfinite(embeddings).all():
+        raise ValueError('Das Embedding-Modell hat ungültige oder unvollständige Vektoren erzeugt.')
+    report(20, '2/6: Reduziere Dimensionen (UMAP) …')
+    reducer = umap.UMAP(n_neighbors=config.n_neighbors, n_components=config.n_components,
+                        min_dist=config.min_dist, metric='cosine', random_state=config.random_state, n_jobs=1)
+    report(30, '3/6: Clustere mit HDBSCAN …')
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=config.min_cluster_size, metric='euclidean', prediction_data=True)
+    report(40, '4/6: Baue Vektorisierung …')
+    ctfidf = ClassTfidfTransformer(reduce_frequent_words=True)
+    report(50, '5/6: Konfiguriere Repräsentationen …')
+    representations = {}
+    if 'KeyBERT' in config.representation_models:
+        representations['KeyBERT'] = KeyBERTInspired(top_n_words=config.top_n_words)
+    if 'MMR' in config.representation_models:
+        representations['MMR'] = MaximalMarginalRelevance(top_n_words=config.top_n_words)
+    report(60, '6/6: Trainiere Modell …')
+    model = BERTopic(embedding_model=embedding_model, top_n_words=config.top_n_words,
+                    umap_model=reducer, hdbscan_model=clusterer, vectorizer_model=vectorizer,
+                    ctfidf_model=ctfidf, representation_model=representations,
+                    calculate_probabilities=True, verbose=False)
+    try:
+        model.fit_transform(documents, embeddings)
+    except ValueError as exc:
+        if any(message in str(exc).lower() for message in ('empty vocabulary', 'no terms remain', 'max_df corresponds')):
+            raise ValueError('Keine Begriffe für die ermittelten Themen übrig. min_df senken, max_df auf 1.0 setzen oder Textauswahl ändern. Die Häufigkeitsfilter gelten bei BERTopic für zusammengefasste Themen.') from exc
+        raise
+    report(100, 'Modelltraining abgeschlossen.')
+    return TrainingResult(model, model.get_topic_info(), embeddings, documents, config)

@@ -129,7 +129,7 @@ if raw_data is not None:
                 st.stop()
 
             # New data invalidates all derived model and analysis state.
-            for key in ("topic_model", "topic_info", "topic_info_original", "display_topics",
+            for key in ("analysis", "topic_model", "topic_info", "topic_info_original", "display_topics",
                         "model_trained", "embeddings", "embedding_model", "docs", "ids",
                         "model_params", "last_model_params", "original_topics",
                         "original_topic_info", "original_display_topics", "original_outlier_count",

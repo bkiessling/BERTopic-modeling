@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
 # Modules
-from modules.analysis.outlier_handler import reduce_outliers, restore_outliers
+from modules.analysis.export import build_result_archive
 from modules.analysis.topic_table import build_topic_table, compute_topic_stats
 from modules.analysis.document_table import build_document_table
 
@@ -23,32 +22,16 @@ st.subheader("Analyse der Ergebnisse")
 # -------------------------------
 # Guard – ensure model exists
 # -------------------------------
-if "topic_model" not in st.session_state or "topic_info" not in st.session_state:
-    st.error("Kein Modell gefunden. Bitte zuerst ein Modell trainieren.")
+if "analysis" not in st.session_state:
+    st.info("Kein Modell gefunden. Bitte zuerst ein Modell trainieren.")
     st.stop()
 
-# -------------------------------
-# Load essentials from session
-# -------------------------------
-topic_model   = st.session_state["topic_model"]
-topic_info    = st.session_state["topic_info"]
-cleaned_data  = st.session_state["cleaned_data"]
-docs          = st.session_state["docs"]
-ids = st.session_state.get(
-    "ids",
-    cleaned_data[st.session_state["id_column"]].tolist()
-)
-top_n_words   = st.session_state.get("model_params", {}).get("top_n_words", 10)
-
-# -------------------------------
-# Prepare topic overview table
-# -------------------------------
-if "display_topics" not in st.session_state or st.session_state["display_topics"] is None:
-    st.session_state["display_topics"] = build_topic_table(
-        topic_info=topic_info,
-        docs=docs,
-        top_n_words=top_n_words
-    )
+analysis = st.session_state["analysis"]
+result = analysis.result
+topic_model = result.model
+docs = result.documents
+ids = analysis.ids
+top_n_words = result.config.top_n_words
 
 # -------------------------------
 # Sidebar – Outlier controls
@@ -62,24 +45,33 @@ threshold = st.sidebar.slider(
 
 # Reduce outliers
 if st.sidebar.button("Outlier reduzieren"):
-    if reduce_outliers(
-        topic_model=topic_model,
-        docs=docs,
-        embeddings=st.session_state["embeddings"],
-        threshold=threshold,
-        top_n_words=top_n_words,
-        session_state=st.session_state,
-    ):
+    if analysis.reduce_outliers(threshold):
         st.success("Outlier erfolgreich reduziert")
     else:
         st.info("Keine Ausreißer vorhanden.")
 
-# Reset to originals
 if st.sidebar.button("Outlier zurücksetzen"):
-    if restore_outliers(topic_model, docs, top_n_words, st.session_state):
+    if analysis.restore_outliers():
         st.success("Outlier wurden zurückgesetzt.")
     else:
         st.info("Keine ursprünglichen Zuordnungen gespeichert. Bitte zuerst Ausreißer reduzieren.")
+
+topic_info = result.topic_info
+display_topics = build_topic_table(topic_info, docs, top_n_words)
+
+with st.expander("Ergebnisse exportieren"):
+    st.caption("ZIP mit Themen und bereinigten Texten als CSV/JSON sowie Parametern und Paketversionen. Enthält die aktuell angezeigten Zuordnungen, einschließlich Ausreißeranpassungen.")
+    st.download_button(
+        "Ergebnisarchiv herunterladen",
+        data=build_result_archive(docs, ids, topic_model.topics_, topic_info,
+                                  result.config.to_dict(), {
+                                      "trained_at": analysis.trained_at,
+                                      "text_columns": analysis.text_columns,
+                                      "preprocessing": analysis.preprocessing,
+                                      "outlier_thresholds": analysis.outlier_thresholds,
+                                  }),
+        file_name="bertopic-results.zip", mime="application/zip",
+    )
 
 # -------------------------------
 # Tabs: Topics, Documents, Model parameters
@@ -92,8 +84,6 @@ tab_overview, tab_documents, tab_params = st.tabs(
 # --- Themenübersicht ---
 with tab_overview:
     st.markdown("#### Themenübersicht")
-    display_topics = st.session_state["display_topics"]
-    topic_info     = st.session_state["topic_info"]
 
     n_topics, outl_pct, avg_docs = compute_topic_stats(topic_info, docs)
 
@@ -109,7 +99,7 @@ with tab_overview:
 with tab_documents:
     st.markdown("#### Textbeiträge")
     
-    main_txt_col = st.session_state.get("original_text_columns", ["Textbeitrag"])[0]
+    main_txt_col = analysis.text_columns[0] if analysis.text_columns else "Textbeitrag"
     doc_topics = topic_model.topics_
 
     view_mode = "Textbeitrag"
@@ -145,7 +135,7 @@ with tab_documents:
 # --- Modell-Parameter ---
 with tab_params:
     st.markdown("#### Modell-Parameter")
-    params = st.session_state.get("model_params", {})
+    params = result.config.to_dict()
     rows = [
         {"Parameter": k if not isinstance(v, dict) else f"{k}.{sub_k}", "Wert": str(sub_v)}
         for k, v in params.items()
@@ -199,7 +189,7 @@ with tab_net:
                 topic_model=topic_model,
                 topics=topic_model.topics_,  # <- pass topics explicitly
                 docs=docs,
-                embeddings=np.array(st.session_state["embeddings"]),
+                embeddings=result.embeddings,
                 dim_reduction="umap",
                 top_n_legend=20,
                 width=1000,

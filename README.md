@@ -4,7 +4,7 @@ Interaktive Streamlit-Anwendung für explorative Themenanalysen deutscher und en
 
 ## Installation
 
-Getestet mit Python 3.12. Eine virtuelle Umgebung wird empfohlen:
+Getestet unter Linux mit Python 3.12. Auf macOS den CPU-Index-Schritt auslassen; PyTorch wird dort aus `requirements.txt` installiert. Die App nutzt verfügbare CUDA- bzw. Apple-MPS-Beschleunigung, sonst CPU. Eine virtuelle Umgebung wird empfohlen:
 
 ```bash
 python3.12 -m venv .venv
@@ -34,7 +34,7 @@ streamlit run app.py
 
 Die Bereinigung entfernt unter anderem URLs, Zahlen und Satzzeichen und wandelt Texte in Kleinbuchstaben um. Das kann fachlich wichtige Informationen entfernen; die Vorschau vor dem Training prüfen. Für belastbare Themenanalysen genügend vielfältige Texte verwenden; sehr kleine Datensätze liefern häufig keine stabilen Cluster.
 
-Neue bereinigte Daten verwerfen das bisherige Modell der Sitzung. Ein Browser-Neustart bzw. eine neue Streamlit-Sitzung kann Ergebnisse verlieren; ein persistenter Modell- und Ergebnisexport ist derzeit nicht implementiert.
+Neue bereinigte Daten verwerfen das bisherige Modell der Sitzung. Ein Browser-Neustart bzw. eine neue Streamlit-Sitzung kann Ergebnisse verlieren; Ergebnisse können als ZIP heruntergeladen werden. Ein Modellimport und das Speichern/Laden eines trainierten Modells sind derzeit nicht implementiert.
 
 ### Netzwerk und Modelle
 
@@ -42,7 +42,51 @@ Pakete kommen von PyPI und gegebenenfalls `download.pytorch.org`. NLTK lädt Sto
 
 In eingeschränkten Cloud-Netzen müssen `huggingface.co` und die tatsächlichen Download-/Redirect-Ziele zugelassen sein, gegebenenfalls `*.huggingface.co` sowie die verwendeten Xet-CDN-Hosts. In der aktuellen Cloud-Umgebung war Hugging Face beim Prüfen mit HTTP 403 blockiert. Die Tests nutzen deshalb lokale synthetische Embeddings; Modell-Downloads und die semantische Qualität der realen Embeddings wurden damit nicht geprüft.
 
-Das optionale Jina-Modell verwendet `trust_remote_code=True` und führt Modellcode aus dem heruntergeladenen Repository aus. Vor produktivem Einsatz Modellrevisionen prüfen und festlegen.
+Die Auswahl beginnt bei der Sprache: Für Deutsch werden mehrsprachiges MiniLM (Voreinstellung) und mehrsprachiges MPNet angeboten. Für Englisch stehen zusätzlich englisches MiniLM (Voreinstellung) und MPNet bereit. Die Textlänge ändert das Sprachmodell nicht. Modellwahl und Clusteringqualität müssen weiterhin fachlich geprüft werden. Modellcode aus fremden Repositories wird nicht ausgeführt (`trust_remote_code=False`); Jina ist deshalb nicht mehr Bestandteil der Standardauswahl.
+
+## Ergebnisexport
+
+In der Analyse unter **Ergebnisse exportieren** das ZIP-Archiv herunterladen:
+
+- `documents.csv` / `documents.json`: IDs, bereinigte Texte und aktuelle Themenzuordnungen, einschließlich Ausreißeränderungen.
+- `topics.csv` / `topics.json`: Themenhäufigkeiten und Repräsentationen.
+- `manifest.json`: Trainingsparameter, Seed, Paketversionen, Zeitstempel, Textspalten, Bereinigungseinstellungen und angewendete Ausreißerschwellwerte.
+
+CSV-Dateien verwenden UTF-8 mit BOM. Texte mit Formelpräfix werden für Tabellenkalkulationen mit einem Apostroph geschützt; JSON enthält die unveränderten Werte. Das Archiv enthält Texte aus dem Upload, aber weder die ursprüngliche Datei noch ausführbare Modellobjekte. Es dient der Ergebnisweitergabe, nicht dem Wiederaufnehmen des Trainings. Seed und Metadaten garantieren keine hardwareübergreifend identischen Ergebnisse.
+
+## Parameterprüfung und Trainingsschnittstelle
+
+Die Oberfläche meldet ungültige Parameter und deaktiviert das Training, bevor ein Sprachmodell geladen wird. Die Trainingsfunktion prüft dieselben Regeln unabhängig von Streamlit: mindestens vier nichtleere Texte, gültige UMAP-Dimensionen/Nachbarzahlen, Clustergröße, N-Gramme, Häufigkeitsgrenzen, Sprache und Themenrepräsentationen. Vier Texte sind eine technische Untergrenze, keine Empfehlung für belastbare Analysen.
+
+Die Vektorisierung prüft auf leeres Vokabular. BERTopic wendet `min_df`/`max_df` auf nach Themen zusammengefasste Texte an; nach dem Clustering kann daher zusätzlich eine verständliche Fehlermeldung notwendig sein. `max_df=1.0` vermeidet unbeabsichtigtes Entfernen aller Begriffe bei wenigen Themen.
+
+`TrainingConfig` und `TrainingResult` bilden die unabhängige Schnittstelle:
+
+```python
+from modules.modeling.configuration import TrainingConfig, MULTILINGUAL_MODEL
+from modules.modeling.train_model import train_bertopic_model
+
+config = TrainingConfig(MULTILINGUAL_MODEL, "Deutsch")
+# documents: Liste ausreichend vieler Texte; encoder: bereits geladenes Embedding-Modell
+result = train_bertopic_model(documents, config, encoder,
+                             on_progress=lambda percent, message: print(percent, message))
+# result.model, result.topic_info, result.embeddings, result.documents, result.config
+```
+
+Das Training importiert kein Streamlit und schreibt nicht in `session_state`. Die Oberfläche speichert Modell und Auswertungszustand in einem `AnalysisState`-Objekt unter einem Sitzungsschlüssel. Die Ausreißerfunktionen sind ebenfalls unabhängig von Streamlit. Widgets bleiben in `modules/ui/modeling_inputs.py`.
+
+## Aktualisieren und Importfehler
+
+Nach einem Branch-Wechsel oder Update den laufenden Streamlit-Prozess mit `Ctrl+C` beenden und neu starten:
+
+```bash
+git switch dev
+git pull --ff-only
+python -m pip install -r requirements.txt
+streamlit run app.py
+```
+
+Ein `ImportError` für `restore_outliers` kann auf einen älteren Checkout oder ein noch geladenes altes Python-Modul hinweisen. Der aktuelle Stand enthält die Funktion; ein Neustart lädt die neue Version. Laufende Sitzungen mit alten Ergebnisobjekten müssen nach dieser Umstellung neu trainiert werden.
 
 ## Diagramme interpretieren
 
@@ -61,7 +105,7 @@ HF_HUB_OFFLINE=1 NUMBA_NUM_THREADS=2 OMP_NUM_THREADS=2 \
   python -m unittest discover -s tests -v
 ```
 
-Die Tests benötigen keine heruntergeladenen Sprachmodelle. Sie prüfen Plotly-Kompatibilität, ausschließlich Ausreißer, kleine Datensätze, echtes BERTopic-Training mit synthetischen Embeddings, das Rendern aller drei Diagramme über Streamlit `AppTest`, erneute Seitenausführung sowie konsistentes Zurücksetzen von Ausreißern. Die englische Stopwortliste des Testtrainings ist in scikit-learn enthalten. Der erste Lauf kann wegen der Numba-Kompilierung länger dauern.
+Die Tests benötigen keine heruntergeladenen Sprachmodelle. Sie prüfen Plotly-Kompatibilität, ausschließlich Ausreißer, kleine Datensätze, echtes BERTopic-Training mit synthetischen Embeddings, das Rendern aller drei Diagramme über Streamlit `AppTest`, erneute Seitenausführung sowie konsistentes Zurücksetzen von Ausreißern. Hinzu kommen Parameterprüfung vor dem Encoding, sprachabhängige Modellauswahl, der deaktivierte Trainingsbutton bei ungültigen Eingaben und der ZIP-/CSV-/JSON-Export. Die englische Stopwortliste des Testtrainings ist in scikit-learn enthalten. Der erste Lauf kann wegen der Numba-Kompilierung länger dauern.
 
 ## Repository-Struktur
 
@@ -71,17 +115,17 @@ pages/                      Upload, Modellierung und Analyse
 modules/
   upload/                   Dateiformate und CSV-Trennzeichen
   preprocessing/            Textauswahl, Bereinigung und Stopwörter
-  modeling/                 Parameter-Widgets und BERTopic-Training
-  analysis/                 Ergebnistabellen und Ausreißerbehandlung
+  modeling/                 Unabhängige Konfiguration, Validierung und Training
+  analysis/                 Tabellen, Ausreißerbehandlung und Ergebnisexport
   viz/                      Diagramme und gecachte Projektion
-  ui/                       Erläuterungen
+  ui/                       Widgets, Erläuterungen und Analyse-Sitzungszustand
 assets/                     Logo
 .streamlit/config.toml      Darstellung und Streamlit-Einstellungen
 tests/                      Regressionstests und Streamlit-Integration
 requirements.txt            Getestete direkte Python-Abhängigkeiten
 ```
 
-Die Trennung nach Arbeitsschritten ist für die aktuelle Größe sinnvoll. UI und Trainingslogik sind noch teilweise gekoppelt (`st.session_state` im Training). `topic_modeling.py` ist ein älterer Einstieg; unterstützt wird `app.py`. `modules/viz/heatmap.py` enthält eine weitere, derzeit nicht eingebundene Wortgewichtungsansicht.
+Die Trennung nach Arbeitsschritten ist für die aktuelle Größe sinnvoll. Trainings- und Analyselogik sind von der Streamlit-Sitzung getrennt; nur Seiten und UI-Adapter verwalten den Oberflächenzustand. `topic_modeling.py` ist ein älterer Einstieg; unterstützt wird `app.py`. `modules/viz/heatmap.py` enthält eine weitere, derzeit nicht eingebundene Wortgewichtungsansicht.
 
 ## Eignung und nächste Schritte
 
@@ -89,9 +133,8 @@ Streamlit eignet sich für explorative Analysen, interne Fachanwendungen und ein
 
 Prioritäten für die weitere Entwicklung:
 
-- Trainingslogik von Widgets und `session_state` trennen; ein gemeinsames Modell für Konfiguration und Ergebnisse einführen.
-- Sprachmodell und Sprache fachlich aufeinander abstimmen; englische Modelle nicht pauschal für deutsche Texte empfehlen. Automatische Modellwahl anhand der Textlänge allein ist nicht belastbar.
-- Parameter vor dem Training auf Datensatzgröße abstimmen und Qualitätsmaße sowie nachvollziehbare Modellmetadaten ergänzen.
+- Die sprachlich passende Modellauswahl an eigenen Beispieldaten evaluieren und Modellrevisionen festlegen.
+- Qualitätsmaße für Themen ergänzen; technische Parameterprüfung ersetzt keine fachliche Evaluation.
 - Fehlgeschlagene Uploads mit verständlichen Meldungen behandeln, Zeichencodierung und Datenqualität prüfen.
-- Modell-/Ergebnisexport, vollständiges Lockfile und CI ergänzen; ungenutzte Einstiege und Module anschließend konsolidieren.
+- Wiederladbaren Modellexport und ein vollständiges Lockfile ergänzen; ungenutzte Einstiege und Module konsolidieren.
 - Bei großen Datenmengen Projektionen begrenzen bzw. gezielt berechnen und Training in einen Hintergrundprozess auslagern.
