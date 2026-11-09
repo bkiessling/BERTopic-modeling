@@ -5,12 +5,39 @@ import math
 
 MULTILINGUAL_MODEL = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'
 ENGLISH_MODEL = 'sentence-transformers/all-MiniLM-L6-v2'
-MODELS = {
-    MULTILINGUAL_MODEL: ('Deutsch', 'Englisch'),
-    'sentence-transformers/paraphrase-multilingual-mpnet-base-v2': ('Deutsch', 'Englisch'),
-    ENGLISH_MODEL: ('Englisch',),
-    'sentence-transformers/all-mpnet-base-v2': ('Englisch',),
+@dataclass(frozen=True)
+class EmbeddingOption:
+    languages: tuple[str, ...]
+    label: str
+    description: str
+    prompt: str = ''
+    batch_size: int = 32
+
+
+MODEL_OPTIONS = {
+    MULTILINGUAL_MODEL: EmbeddingOption(('Deutsch', 'Englisch'), 'MiniLM mehrsprachig · schnell (Standard)',
+        'Kompakte Ausgangsbasis für kurze deutsche Texte; kein aktueller Benchmark-Spitzenreiter.'),
+    'sentence-transformers/paraphrase-multilingual-mpnet-base-v2': EmbeddingOption(('Deutsch', 'Englisch'),
+        'MPNet mehrsprachig · größer', 'Größere Alternative zu MiniLM; höhere Rechenkosten.'),
+    'intfloat/multilingual-e5-small': EmbeddingOption(('Deutsch', 'Englisch'),
+        'E5 small mehrsprachig · kompakt', 'Praktischer Kandidat für den Intel-Mac. Der query-Präfix wird automatisch verwendet.', 'query: '),
+    'intfloat/multilingual-e5-base': EmbeddingOption(('Deutsch', 'Englisch'),
+        'E5 base mehrsprachig · ausgewogen', 'Größerer E5-Kandidat für einen Qualitätsvergleich auf eigenen Texten.', 'query: '),
+    'BAAI/bge-m3': EmbeddingOption(('Deutsch', 'Englisch'),
+        'BGE-M3 · hoher RAM-Bedarf', 'Über 100 Sprachen und bis zu 8192 Tokens laut Anbieter. BERTopic nutzt hier nur die dichten Vektoren. Lange Texte kosten viel RAM.', batch_size=4),
+    'Qwen/Qwen3-Embedding-0.6B': EmbeddingOption(('Deutsch', 'Englisch'),
+        'Qwen3 Embedding 0.6B · experimentell, CPU langsam', 'Moderner mehrsprachiger Kandidat; auf dem Intel-Mac deutlich aufwendiger. Clustering-Instruktion wird automatisch gesetzt.',
+        'Instruct: Identify the main topic of the text for clustering.\nQuery: ', batch_size=2),
+    ENGLISH_MODEL: EmbeddingOption(('Englisch',), 'MiniLM Englisch · schnell (Standard)', 'Kompaktes Modell für englische Texte.'),
+    'sentence-transformers/all-mpnet-base-v2': EmbeddingOption(('Englisch',),
+        'MPNet Englisch · größer', 'Größere Alternative für englische Texte.'),
 }
+MODELS = {name: option.languages for name, option in MODEL_OPTIONS.items()}
+
+
+def embedding_settings(model_name):
+    option = MODEL_OPTIONS.get(model_name)
+    return {'prompt': option.prompt if option else '', 'batch_size': option.batch_size if option else 32}
 
 
 def recommended_model(language):
@@ -53,6 +80,7 @@ class TrainingConfig:
             'vectorizer': {'ngram_range': self.ngram_range, 'min_df': self.min_df, 'max_df': self.max_df},
             'representation_models': list(self.representation_models), 'top_n_words': self.top_n_words,
             'random_state': self.random_state,
+            'embedding_settings': embedding_settings(self.embedding_model),
         }
 
     @classmethod

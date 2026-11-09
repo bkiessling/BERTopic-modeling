@@ -1,6 +1,6 @@
 import streamlit as st
 
-from modules.modeling.configuration import MODELS, recommended_model
+from modules.modeling.configuration import MODELS, MODEL_OPTIONS, recommended_model
 
 
 def language_and_embedding(defaults=None):
@@ -11,9 +11,12 @@ def language_and_embedding(defaults=None):
     model = st.selectbox(
         "Embedding-Modell", models, index=models.index(default),
         key=f"embedding_model_{language}",
+        format_func=lambda name: MODEL_OPTIONS[name].label,
         help="Für Deutsch werden mehrsprachige Modelle angeboten. Die Textlänge bestimmt nicht die Sprachunterstützung.",
     )
-    st.caption("Empfehlung: mehrsprachiges MiniLM für Deutsch; englisches MiniLM für Englisch. Größere Modelle sind wählbar. Die Auswahl ersetzt keine fachliche Qualitätsprüfung.")
+    st.caption(f"{len(models)} Modelle verfügbar. Pro Trainingslauf wird ein Modell verwendet.")
+    st.caption(MODEL_OPTIONS[model].description)
+    st.markdown(f"[Modellkarte auf Hugging Face](https://huggingface.co/{model})")
     return model, language
 
 # UMAP inputs

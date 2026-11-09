@@ -8,9 +8,11 @@ from unittest.mock import Mock
 import pandas as pd
 from streamlit.testing.v1 import AppTest
 from pathlib import Path
-from modules.modeling.configuration import TrainingConfig, get_default_params, MULTILINGUAL_MODEL, ENGLISH_MODEL
+from modules.modeling.configuration import TrainingConfig, get_default_params, MULTILINGUAL_MODEL, ENGLISH_MODEL, MODELS, MODEL_OPTIONS
 from modules.modeling.train_model import train_bertopic_model
 from modules.analysis.export import build_result_archive
+from modules.modeling.encoders import build_encoder
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -59,6 +61,33 @@ class ConfigurationTests(unittest.TestCase):
         app.selectbox(key='model_language').select('Englisch').run(timeout=30)
         self.assertFalse(app.exception, list(app.exception))
         self.assertEqual(app.selectbox(key='embedding_model_Englisch').value, ENGLISH_MODEL)
+
+    def test_all_six_german_models_are_visible_and_selectable(self):
+        app = AppTest.from_file(str(ROOT/'pages/2_Modellierung.py')).run(timeout=60)
+        options = [name for name, languages in MODELS.items() if 'Deutsch' in languages]
+        self.assertGreaterEqual(len(options), 6)
+        selector = app.selectbox(key='embedding_model_Deutsch')
+        self.assertEqual(set(selector.options), {MODEL_OPTIONS[name].label for name in options})
+        for name in options:
+            app.selectbox(key='embedding_model_Deutsch').select(name).run(timeout=30)
+            self.assertFalse(app.exception, list(app.exception))
+            self.assertEqual(app.selectbox(key='embedding_model_Deutsch').value, name)
+
+    def test_encoder_receives_model_specific_prompts(self):
+        for name, prefix in (
+            ('intfloat/multilingual-e5-base', 'query: '),
+            ('Qwen/Qwen3-Embedding-0.6B', 'Instruct: Identify the main topic of the text for clustering.\nQuery: '),
+            ('BAAI/bge-m3', ''),
+        ):
+            with self.subTest(model=name), patch('modules.modeling.encoders.SentenceTransformer') as loader:
+                build_encoder(name)
+                options = loader.call_args.kwargs
+                self.assertEqual(options['model_kwargs'], {'use_safetensors': True})
+                if prefix:
+                    self.assertEqual(options['prompts']['clustering'], prefix)
+                    self.assertEqual(options['default_prompt_name'], 'clustering')
+                else:
+                    self.assertNotIn('default_prompt_name', options)
 
 class ExportTests(unittest.TestCase):
     def test_archive_roundtrip_and_csv_formula_protection(self):

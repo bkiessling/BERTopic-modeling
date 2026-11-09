@@ -12,7 +12,8 @@ def _csv(frame):
         if isinstance(value, str) and value.lstrip().startswith(('=', '+', '-', '@')):
             return "'" + value
         return value
-    return frame.map(safe).to_csv(index=False).encode('utf-8-sig')
+    # Series.map also works with pandas < 2.1 (DataFrame.map does not).
+    return frame.apply(lambda column: column.map(safe)).to_csv(index=False).encode('utf-8-sig')
 
 
 def build_result_archive(documents, ids, topics, topic_info, config, metadata=None):

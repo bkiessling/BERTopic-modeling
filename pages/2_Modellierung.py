@@ -10,7 +10,7 @@ from modules.ui.modeling_inputs import (
 )
 from modules.modeling.train_model import train_bertopic_model
 from modules.ui.explanations import show_model_explanations
-from sentence_transformers import SentenceTransformer
+from modules.modeling.encoders import build_encoder
 import torch
 from modules.modeling.configuration import TrainingConfig, get_default_params
 from modules.ui.analysis_state import AnalysisState
@@ -61,8 +61,7 @@ with st.sidebar:
 @st.cache_resource
 def load_embedding_model(model_name):
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    return SentenceTransformer(model_name, device=device, trust_remote_code=False,
-                               model_kwargs={"use_safetensors": True})
+    return build_encoder(model_name, device=device)
 
 
 if "cleaned_data" not in st.session_state or st.session_state["cleaned_data"].empty:

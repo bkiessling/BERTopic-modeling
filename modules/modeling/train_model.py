@@ -10,7 +10,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from nltk.corpus import stopwords
 import umap
 import hdbscan
-from modules.modeling.configuration import TrainingConfig
+from modules.modeling.configuration import TrainingConfig, embedding_settings
 
 
 @dataclass
@@ -48,7 +48,7 @@ def train_bertopic_model(documents, config: TrainingConfig, embedding_model,
         raise ValueError('Nach Tokenisierung und Stopwortfilter bleiben keine verwendbaren Begriffe übrig.') from exc
 
     report(5, '1/6: Berechne Embeddings …')
-    embeddings = np.asarray(embedding_model.encode(documents, batch_size=32, show_progress_bar=False))
+    embeddings = np.asarray(embedding_model.encode(documents, batch_size=embedding_settings(config.embedding_model)['batch_size'], show_progress_bar=False))
     if embeddings.ndim != 2 or embeddings.shape[0] != len(documents) or not np.isfinite(embeddings).all():
         raise ValueError('Das Embedding-Modell hat ungültige oder unvollständige Vektoren erzeugt.')
     report(20, '2/6: Reduziere Dimensionen (UMAP) …')

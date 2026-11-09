@@ -55,7 +55,11 @@ Pakete kommen von PyPI und gegebenenfalls `download.pytorch.org`. NLTK lädt Sto
 
 In eingeschränkten Cloud-Netzen müssen `huggingface.co` und die tatsächlichen Download-/Redirect-Ziele zugelassen sein, gegebenenfalls `*.huggingface.co` sowie die verwendeten Xet-CDN-Hosts. In der aktuellen Cloud-Umgebung war Hugging Face beim Prüfen mit HTTP 403 blockiert. Die Tests nutzen deshalb lokale synthetische Embeddings; Modell-Downloads und die semantische Qualität der realen Embeddings wurden damit nicht geprüft.
 
-Die Auswahl beginnt bei der Sprache: Für Deutsch werden mehrsprachiges MiniLM (Voreinstellung) und mehrsprachiges MPNet angeboten. Für Englisch stehen zusätzlich englisches MiniLM (Voreinstellung) und MPNet bereit. Die Textlänge ändert das Sprachmodell nicht. Modellwahl und Clusteringqualität müssen weiterhin fachlich geprüft werden. Die App fordert Safetensors-Gewichte an (`use_safetensors=True`); Modelle ohne diese Gewichte werden nicht auf unsichere Pickle-Gewichte zurückfallen gelassen. Modellcode aus fremden Repositories wird nicht ausgeführt (`trust_remote_code=False`); Jina ist deshalb nicht mehr Bestandteil der Standardauswahl.
+Die Auswahl beginnt bei der Sprache. Für Deutsch bietet das Dropdown sechs Modelle: mehrsprachiges MiniLM und MPNet, multilingual E5 small und base, BGE-M3 sowie Qwen3 Embedding 0.6B (experimentell). Unter dem Dropdown stehen Anzahl, Ressourcenhinweis und ein Link zur Modellkarte. Die Textlänge ändert das Sprachmodell nicht. Für Englisch stehen zusätzlich die englischen MiniLM-/MPNet-Varianten bereit. Pro Trainingslauf wird ein Modell verwendet.
+
+E5 erhält automatisch `query: `, Qwen eine Clustering-Instruktion. Kleinere Batches begrenzen den Speicherbedarf der größeren Modelle. Die App fordert Safetensors-Gewichte an (`use_safetensors=True`) und verwendet kein fremdes Modellskript (`trust_remote_code=False`).
+
+Eine Einordnung der deutschen MTEB-Ergebnisse und der Grenzen der Modellprüfung steht in [Embedding-Modelle für Deutsch](docs/embedding-models.md). Ein Gesamtmittel über verschiedene Aufgaben ist kein Beleg für das beste Topic-Clustering. Für deinen Intel-Mac sind MiniLM oder E5 small praktische Ausgangspunkte.
 
 ## Ergebnisexport
 
@@ -65,7 +69,7 @@ In der Analyse unter **Ergebnisse exportieren** das ZIP-Archiv herunterladen:
 - `topics.csv` / `topics.json`: Themenhäufigkeiten und Repräsentationen.
 - `manifest.json`: Trainingsparameter, Seed, Paketversionen, Zeitstempel, Textspalten, Bereinigungseinstellungen und angewendete Ausreißerschwellwerte.
 
-CSV-Dateien verwenden UTF-8 mit BOM. Texte mit Formelpräfix werden für Tabellenkalkulationen mit einem Apostroph geschützt; JSON enthält die unveränderten Werte. Das Archiv enthält Texte aus dem Upload, aber weder die ursprüngliche Datei noch ausführbare Modellobjekte. Es dient der Ergebnisweitergabe, nicht dem Wiederaufnehmen des Trainings. Seed und Metadaten garantieren keine hardwareübergreifend identischen Ergebnisse.
+CSV-Dateien verwenden UTF-8 mit BOM. Der Export ist auch mit Pandas 1.5 kompatibel; ein Exportfehler unterbricht die Analyseansicht nicht mehr. Texte mit Formelpräfix werden für Tabellenkalkulationen mit einem Apostroph geschützt; JSON enthält die unveränderten Werte. Das Archiv enthält Texte aus dem Upload, aber weder die ursprüngliche Datei noch ausführbare Modellobjekte. Es dient der Ergebnisweitergabe, nicht dem Wiederaufnehmen des Trainings. Seed und Metadaten garantieren keine hardwareübergreifend identischen Ergebnisse.
 
 ## Parameterprüfung und Trainingsschnittstelle
 
@@ -99,6 +103,8 @@ python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
+Falls ein Traceback auf `/usr/local/anaconda3/lib/...` statt auf `.../envs/bertopic-dev/...` zeigt, läuft häufig noch die Conda-Basisumgebung. `conda activate bertopic-dev` ausführen und mit `python -m streamlit run app.py` starten, damit Streamlit denselben Python-Interpreter verwendet.
+
 Ein `ImportError` für `restore_outliers` kann auf einen älteren Checkout oder ein noch geladenes altes Python-Modul hinweisen. Der aktuelle Stand enthält die Funktion; ein Neustart lädt die neue Version. Laufende Sitzungen mit alten Ergebnisobjekten müssen nach dieser Umstellung neu trainiert werden.
 
 ## Diagramme interpretieren
@@ -118,7 +124,7 @@ HF_HUB_OFFLINE=1 NUMBA_NUM_THREADS=2 OMP_NUM_THREADS=2 \
   python -m unittest discover -s tests -v
 ```
 
-Die Tests benötigen keine heruntergeladenen Sprachmodelle. Sie prüfen Plotly-Kompatibilität, ausschließlich Ausreißer, kleine Datensätze, echtes BERTopic-Training mit synthetischen Embeddings, das Rendern aller drei Diagramme über Streamlit `AppTest`, erneute Seitenausführung sowie konsistentes Zurücksetzen von Ausreißern. Hinzu kommen Parameterprüfung vor dem Encoding, sprachabhängige Modellauswahl, der deaktivierte Trainingsbutton bei ungültigen Eingaben und der ZIP-/CSV-/JSON-Export. Die englische Stopwortliste des Testtrainings ist in scikit-learn enthalten. Der erste Lauf kann wegen der Numba-Kompilierung länger dauern.
+Die Tests benötigen keine heruntergeladenen Sprachmodelle. Sie prüfen Plotly-Kompatibilität, ausschließlich Ausreißer, kleine Datensätze, echtes BERTopic-Training mit synthetischen Embeddings, das Rendern aller drei Diagramme über Streamlit `AppTest`, erneute Seitenausführung sowie konsistentes Zurücksetzen von Ausreißern. Hinzu kommen Parameterprüfung vor dem Encoding, sichtbare und wechselbare Optionen im Modell-Dropdown, Modell-Prompts, der deaktivierte Trainingsbutton bei ungültigen Eingaben und der ZIP-/CSV-/JSON-Export. Die englische Stopwortliste des Testtrainings ist in scikit-learn enthalten. Der erste Lauf kann wegen der Numba-Kompilierung länger dauern.
 
 ## Repository-Struktur
 

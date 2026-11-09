@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import logging
 
 # Modules
 from modules.analysis.export import build_result_archive
@@ -61,17 +62,20 @@ display_topics = build_topic_table(topic_info, docs, top_n_words)
 
 with st.expander("Ergebnisse exportieren"):
     st.caption("ZIP mit Themen und bereinigten Texten als CSV/JSON sowie Parametern und Paketversionen. Enthält die aktuell angezeigten Zuordnungen, einschließlich Ausreißeranpassungen.")
-    st.download_button(
-        "Ergebnisarchiv herunterladen",
-        data=build_result_archive(docs, ids, topic_model.topics_, topic_info,
-                                  result.config.to_dict(), {
-                                      "trained_at": analysis.trained_at,
-                                      "text_columns": analysis.text_columns,
-                                      "preprocessing": analysis.preprocessing,
-                                      "outlier_thresholds": analysis.outlier_thresholds,
-                                  }),
-        file_name="bertopic-results.zip", mime="application/zip",
-    )
+    try:
+        archive = build_result_archive(docs, ids, topic_model.topics_, topic_info,
+                                       result.config.to_dict(), {
+                                           "trained_at": analysis.trained_at,
+                                           "text_columns": analysis.text_columns,
+                                           "preprocessing": analysis.preprocessing,
+                                           "outlier_thresholds": analysis.outlier_thresholds,
+                                       })
+    except Exception:
+        logging.getLogger(__name__).exception("Ergebnisexport fehlgeschlagen")
+        st.error("Das Ergebnisarchiv konnte nicht erstellt werden. Die Analyse bleibt verfügbar; Details stehen im Serverprotokoll.")
+    else:
+        st.download_button("Ergebnisarchiv herunterladen", data=archive,
+                           file_name="bertopic-results.zip", mime="application/zip")
 
 # -------------------------------
 # Tabs: Topics, Documents, Model parameters

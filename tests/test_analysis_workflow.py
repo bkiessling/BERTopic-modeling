@@ -44,7 +44,7 @@ class AnalysisWorkflowTests(unittest.TestCase):
             'id_column': 'id', 'text_column': 'text', 'original_text_columns': ['Textbeitrag'],
         }.items():
             app.session_state[key] = value
-        with patch('sentence_transformers.SentenceTransformer', return_value=OfflineEncoder()) as loader:
+        with patch('modules.modeling.encoders.SentenceTransformer', return_value=OfflineEncoder()) as loader:
             app.run(timeout=60)
             app.switch_page('pages/2_Modellierung.py').run(timeout=60)
             app.selectbox(key='model_language').select('Englisch').run(timeout=30)
@@ -73,6 +73,15 @@ class AnalysisWorkflowTests(unittest.TestCase):
         self.assertFalse(app.exception, list(app.exception))
         self.assertEqual(len(app.get('plotly_chart')), 2)
         self.assertTrue(any('Keine Themen ausgewählt' in x.value for x in app.info))
+
+    def test_export_failure_does_not_hide_analysis(self):
+        app = AppTest.from_file(str(ROOT / 'pages/3_Analyse.py'))
+        app.session_state['analysis'] = AnalysisState(self.result, list(range(60)))
+        with patch('modules.analysis.export.build_result_archive', side_effect=ValueError('export-test')):
+            app.run(timeout=60)
+        self.assertFalse(app.exception, list(app.exception))
+        self.assertEqual(len(app.get('plotly_chart')), 3)
+        self.assertTrue(any('Analyse bleibt verfügbar' in e.value for e in app.error))
 
     def test_analysis_with_only_outliers(self):
         from test_visualizations import TopicModel
