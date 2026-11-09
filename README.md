@@ -4,7 +4,7 @@ Interaktive Streamlit-Anwendung für explorative Themenanalysen deutscher und en
 
 ## Installation
 
-Getestet unter Linux mit Python 3.12. Auf macOS den CPU-Index-Schritt auslassen; PyTorch wird dort aus `requirements.txt` installiert. Die App nutzt verfügbare CUDA- bzw. Apple-MPS-Beschleunigung, sonst CPU. Eine virtuelle Umgebung wird empfohlen:
+Python 3.11 und 3.12 werden berücksichtigt. Unter Linux wurde die App mit Python 3.12 geprüft; für Intel-macOS mit Python 3.11 sind zusätzlich passende Binärpakete aufgelöst und der ältere numerische Paketstand unter Linux getestet. Native Mac-Tests laufen in der CI; die Cloud selbst führt kein macOS aus. Die App nutzt verfügbare CUDA- bzw. Apple-MPS-Beschleunigung, sonst CPU. Eine virtuelle Umgebung wird empfohlen:
 
 ```bash
 python3.12 -m venv .venv
@@ -16,7 +16,20 @@ python -m pip install -r requirements.txt
 python -m nltk.downloader stopwords
 ```
 
-Die direkten Abhängigkeiten sind auf getestete Versionen festgelegt. `requirements.txt` ist kein vollständiges Lockfile für transitive Abhängigkeiten. Für eine GPU-Installation die passende PyTorch-Variante gemäß [PyTorch](https://pytorch.org/get-started/locally/) installieren.
+**Intel-Mac mit Conda / Python 3.11:** Eine separate Umgebung vermeidet Konflikte mit bereits installierten Paketen in `(base)`:
+
+```bash
+conda create -n bertopic-dev python=3.11 pip
+conda activate bertopic-dev
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m nltk.downloader stopwords
+python -m streamlit run app.py
+```
+
+`requirements.txt` wählt auf Intel-macOS automatisch NumPy 1.26, Pandas 2.2, PyTorch 2.2.2 sowie passende SciPy-/Numba-/PyArrow-Versionen. Neuere PyTorch-Versionen stellen keine Intel-macOS-Wheels bereit; PyTorch 2.2 benötigt für zuverlässige NumPy-Integration NumPy 1.x. Auf anderen Plattformen mit Python 3.11 wird NumPy 2.4 statt des erst ab Python 3.12 verfügbaren NumPy 2.5 verwendet. Auf macOS **keinen** Linux-PyTorch-CPU-Index angeben und keine neuere PyTorch-Version manuell vorinstallieren.
+
+Die direkten Abhängigkeiten sind auf geprüfte Versionen festgelegt. `requirements.txt` ist kein vollständiges Lockfile für transitive Abhängigkeiten. Für eine GPU-Installation die passende PyTorch-Variante gemäß [PyTorch](https://pytorch.org/get-started/locally/) installieren.
 
 NLTK verwendet ein lokales Stopwort-Korpus. In der verwalteten Codex-Cloud kann dafür `NLTK_DATA=/workspace/.bertopic-setup/nltk_data` verwendet werden. Der dortige richtliniengesteuerte Proxy benötigt für den NLTK-Downloader zusätzlich `NLTK_ALLOW_PROXIED_URLOPEN=1`; TLS-Prüfung bleibt aktiv.
 
@@ -42,7 +55,7 @@ Pakete kommen von PyPI und gegebenenfalls `download.pytorch.org`. NLTK lädt Sto
 
 In eingeschränkten Cloud-Netzen müssen `huggingface.co` und die tatsächlichen Download-/Redirect-Ziele zugelassen sein, gegebenenfalls `*.huggingface.co` sowie die verwendeten Xet-CDN-Hosts. In der aktuellen Cloud-Umgebung war Hugging Face beim Prüfen mit HTTP 403 blockiert. Die Tests nutzen deshalb lokale synthetische Embeddings; Modell-Downloads und die semantische Qualität der realen Embeddings wurden damit nicht geprüft.
 
-Die Auswahl beginnt bei der Sprache: Für Deutsch werden mehrsprachiges MiniLM (Voreinstellung) und mehrsprachiges MPNet angeboten. Für Englisch stehen zusätzlich englisches MiniLM (Voreinstellung) und MPNet bereit. Die Textlänge ändert das Sprachmodell nicht. Modellwahl und Clusteringqualität müssen weiterhin fachlich geprüft werden. Modellcode aus fremden Repositories wird nicht ausgeführt (`trust_remote_code=False`); Jina ist deshalb nicht mehr Bestandteil der Standardauswahl.
+Die Auswahl beginnt bei der Sprache: Für Deutsch werden mehrsprachiges MiniLM (Voreinstellung) und mehrsprachiges MPNet angeboten. Für Englisch stehen zusätzlich englisches MiniLM (Voreinstellung) und MPNet bereit. Die Textlänge ändert das Sprachmodell nicht. Modellwahl und Clusteringqualität müssen weiterhin fachlich geprüft werden. Die App fordert Safetensors-Gewichte an (`use_safetensors=True`); Modelle ohne diese Gewichte werden nicht auf unsichere Pickle-Gewichte zurückfallen gelassen. Modellcode aus fremden Repositories wird nicht ausgeführt (`trust_remote_code=False`); Jina ist deshalb nicht mehr Bestandteil der Standardauswahl.
 
 ## Ergebnisexport
 

@@ -61,7 +61,8 @@ with st.sidebar:
 @st.cache_resource
 def load_embedding_model(model_name):
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    return SentenceTransformer(model_name, device=device, trust_remote_code=False)
+    return SentenceTransformer(model_name, device=device, trust_remote_code=False,
+                               model_kwargs={"use_safetensors": True})
 
 
 if "cleaned_data" not in st.session_state or st.session_state["cleaned_data"].empty:
