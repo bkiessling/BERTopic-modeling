@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from streamlit_extras.switch_page_button import switch_page
 from modules.upload.file_upload import load_file
 from modules.upload.delimiter_utils import get_delimiter_label
 from modules.preprocessing.text_cleaner import clean_text_column, filter_text_column
@@ -53,7 +52,7 @@ if uploaded_file is not None:
         num_rows, num_cols = raw_data.shape
         st.success(f"Daten erfolgreich geladen: {num_rows} Zeilen, {num_cols} Spalten")
         st.markdown("#### Vorschau")
-        st.dataframe(raw_data, use_container_width=True, hide_index=True, height=250)
+        st.dataframe(raw_data, width="stretch", hide_index=True, height=250)
 
 # -------------------------------
 # Data cleaning section
@@ -125,6 +124,18 @@ if raw_data is not None:
 
                 cleaned_data["text"] = cleaned_data["text"].apply(remove_custom_words)
 
+            if cleaned_data.empty:
+                st.error("Nach der Bereinigung sind keine Texte übrig. Bitte Auswahl und Stichprobe anpassen.")
+                st.stop()
+
+            # New data invalidates all derived model and analysis state.
+            for key in ("topic_model", "topic_info", "topic_info_original", "display_topics",
+                        "model_trained", "embeddings", "embedding_model", "docs", "ids",
+                        "model_params", "last_model_params", "original_topics",
+                        "original_topic_info", "original_display_topics", "original_outlier_count",
+                        "vectorizer_model", "representation_model", "topic_barchart_selection"):
+                st.session_state.pop(key, None)
+
             # Save all relevant data in session state
             st.session_state.update({
                 "raw_text_df": selected_data,
@@ -168,7 +179,7 @@ if "cleaned_data" in st.session_state and "raw_text_df" in st.session_state:
     col_avg_length.metric("⌀ Textlänge", f"{round(avg_len)}")
 
     # Show cleaned data
-    st.dataframe(cleaned_data, use_container_width=True, hide_index=True, height=250)
+    st.dataframe(cleaned_data, width="stretch", hide_index=True, height=250)
 
     st.markdown("---")
     if st.button("Weiter zur Modellierung"):

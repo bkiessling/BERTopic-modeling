@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from streamlit_extras.switch_page_button import switch_page
 from modules.modeling.parameter_inputs import (
     umap_inputs,
     hdbscan_inputs,
@@ -70,7 +69,9 @@ def load_embedding_model(model_name):
     )
 
 
-embedding_model = load_embedding_model(embedding_model_name)
+if "cleaned_data" not in st.session_state or st.session_state["cleaned_data"].empty:
+    st.info("Bitte zuerst Daten hochladen und bereinigen.")
+    st.stop()
 
 
 # -------------------------------
@@ -123,7 +124,9 @@ if st.button("Modell trainieren"):
         st.write(f"Training startet mit {len(doc_list)} Dokumenten "
                  f"({sample_info}% der ursprünglichen Daten).")
 
-        # Run the BERTopic training directly (no caching)
+        # Load model only when training is requested.
+        embedding_model = load_embedding_model(embedding_model_name)
+
         topic_model, topic_info = train_bertopic_model(
             documents=doc_list,
             params=model_params,
@@ -140,6 +143,7 @@ if st.button("Modell trainieren"):
                 "topic_info_original": topic_info.copy(),
                 "model_params": model_params,
                 "display_topics": None,
+                "original_topics": None,
                 "original_topic_info": None,
                 "original_display_topics": None,
                 "original_outlier_count": int((np.array(topic_model.topics_) == -1).sum()),

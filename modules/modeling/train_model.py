@@ -9,13 +9,8 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sentence_transformers import SentenceTransformer
 import umap
 import hdbscan
-import nltk
 from nltk.corpus import stopwords
 from typing import List, Tuple, Dict, Any
-
-
-# Ensure stopwords are downloaded once (move this to app start later if needed)
-nltk.download("stopwords")
 
 
 def train_bertopic_model(
@@ -55,7 +50,9 @@ def train_bertopic_model(
         n_neighbors=params["umap"]["n_neighbors"],
         n_components=params["umap"]["n_components"],
         min_dist=params["umap"]["min_dist"],
-        metric="cosine"
+        metric="cosine",
+        random_state=42,
+        n_jobs=1
     )
     progress.progress(30)
 
@@ -80,7 +77,13 @@ def train_bertopic_model(
 
     language = params["language"].lower()
 
-    stop_words = stopwords.words("german") if language == "deutsch" else "english"
+    if language == "deutsch":
+        try:
+            stop_words = stopwords.words("german")
+        except LookupError as exc:
+            raise RuntimeError("NLTK-Stopwörter fehlen. Bitte python -m nltk.downloader stopwords ausführen.") from exc
+    else:
+        stop_words = "english"
 
     vectorizer_model = CountVectorizer(
         ngram_range=params["vectorizer"]["ngram_range"],
@@ -116,6 +119,7 @@ def train_bertopic_model(
 
     topic_model = BERTopic(
         embedding_model=embedding_model,
+        top_n_words=top_n_words,
         umap_model=umap_model,
         hdbscan_model=hdbscan_model,
         vectorizer_model=vectorizer_model,

@@ -9,7 +9,3 @@ serverPort = 8501
 
 [client]
 showSidebarNavigation = true
-
-[ui]
-pageTitle = "Topic Modeling"
-favicon = "assets/logo.svg"

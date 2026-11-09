@@ -1,6 +1,5 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import pandas as pd
 import streamlit as st
 
 
@@ -37,6 +36,8 @@ def plot_topic_barcharts(
         "Themen auswählen:",
         options=all_topics["Label"].tolist(),
         default=top_labels,
+        max_selections=max_select,
+        key="topic_barchart_selection",
         help=f"Wähle bis zu {max_select} Themen aus.",
     )
 
@@ -59,7 +60,7 @@ def plot_topic_barcharts(
         width=width,
         height=height_per_chart * len(selected_topics),  # dynamic height
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _plot_barcharts(
@@ -85,13 +86,13 @@ def _plot_barcharts(
     topic_word_data = []
 
     for topic in topics:
-        words = topic_model.get_topic(topic)[:top_n_words]
+        words = (topic_model.get_topic(topic) or [])[:top_n_words]
         terms = [w for w, _ in words][::-1]
         scores = [s for _, s in words][::-1]
         all_scores.extend(scores)
         topic_word_data.append((terms, scores))
 
-    x_max = max(all_scores)
+    x_max = max(all_scores, default=1.0) or 1.0
 
     # -- Plot each chart
     for idx, (terms, scores) in enumerate(topic_word_data):
@@ -110,7 +111,7 @@ def _plot_barcharts(
         )
 
         fig.update_xaxes(
-            title_text="Relevanz (c-TF-IDF)",
+            title_text="Repräsentationsgewicht",
             range=[0, x_max * 1.05],
             row=row,
             col=1,

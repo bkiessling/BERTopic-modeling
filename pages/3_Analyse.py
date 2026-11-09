@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 
 # Modules
-from modules.analysis.outlier_handler import reduce_outliers
+from modules.analysis.outlier_handler import reduce_outliers, restore_outliers
 from modules.analysis.topic_table import build_topic_table, compute_topic_stats
-from modules.analysis.document_table import build_document_table, compute_document_stats
+from modules.analysis.document_table import build_document_table
 
 from modules.viz.topic_network import plot_topic_network
 from modules.viz.topic_barcharts import plot_topic_barcharts
@@ -71,15 +71,15 @@ if st.sidebar.button("Outlier reduzieren"):
         session_state=st.session_state,
     ):
         st.success("Outlier erfolgreich reduziert")
+    else:
+        st.info("Keine Ausreißer vorhanden.")
 
 # Reset to originals
 if st.sidebar.button("Outlier zurücksetzen"):
-    if "original_topic_info" in st.session_state and "original_display_topics" in st.session_state:
-        st.session_state["topic_info"] = st.session_state["original_topic_info"]
-        st.session_state["display_topics"] = st.session_state["original_display_topics"]
+    if restore_outliers(topic_model, docs, top_n_words, st.session_state):
         st.success("Outlier wurden zurückgesetzt.")
     else:
-        st.warning("Keine originalen Outlier-Daten gefunden. Bitte erst 'Outlier reduzieren' nutzen.")
+        st.info("Keine ursprünglichen Zuordnungen gespeichert. Bitte zuerst Ausreißer reduzieren.")
 
 # -------------------------------
 # Tabs: Topics, Documents, Model parameters
@@ -103,7 +103,7 @@ with tab_overview:
     col_outlier.metric("Outlier (Thema -1)", f"{outl_pct}%")
     col_avg_docs.metric("⌀ Dokumente / Thema", avg_docs)
 
-    st.dataframe(display_topics, use_container_width=True, hide_index=True)
+    st.dataframe(display_topics, width="stretch", hide_index=True)
 
 # --- Textbeiträge ---
 with tab_documents:
@@ -135,24 +135,24 @@ with tab_documents:
     )
 
     # Compute and show stats
-    total, uniq = compute_document_stats(display_documents)
+    total, uniq = total_texts, unique_ids
     col_ids, col_texts, _ = st.columns(3)
     col_ids.metric("Unique IDs", f"{uniq:,.0f}".replace(",", "."))
     col_texts.metric("Textbeiträge (n)", f"{total:,.0f}".replace(",", "."))
     
-    st.dataframe(display_documents, use_container_width=True, hide_index=True)
+    st.dataframe(display_documents, width="stretch", hide_index=True)
 
 # --- Modell-Parameter ---
 with tab_params:
     st.markdown("#### Modell-Parameter")
     params = st.session_state.get("model_params", {})
     rows = [
-        {"Parameter": k if not isinstance(v, dict) else f"{k}.{sub_k}", "Wert": sub_v}
+        {"Parameter": k if not isinstance(v, dict) else f"{k}.{sub_k}", "Wert": str(sub_v)}
         for k, v in params.items()
         for sub_k, sub_v in (v.items() if isinstance(v, dict) else {None: v}.items())
     ]
     if rows:
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
     else:
         st.info("Keine Modellparameter gefunden.")
 
@@ -160,18 +160,18 @@ with tab_params:
 # Visualisation Tabs
 # -------------------------------
 st.markdown("#### Visualisierung")
-tab_sim, tab_bars, tab_net = st.tabs(["Themen-Ähnlichkeit", "Top-Keywords", "Themen-Netzwerk"])
+tab_sim, tab_bars, tab_net = st.tabs(["Themen-Ähnlichkeit", "Top-Keywords", "Dokumentenkarte"])
 
 # Topic similarity matrix
 with tab_sim:
     st.markdown("##### Themen-Ähnlichkeit")
     st.caption("Die Matrix zeigt die paarweise Ähnlichkeit der identifizierten Themen auf Basis ihrer Repräsentationen. "
                "Es werden maximal 20 Themen dargestellt. " 
-               "Ein hoher z-Wert weist auf eine starke thematische Überschneidung hin.")
+               "Eine hohe Kosinus-Ähnlichkeit weist auf eine starke thematische Überschneidung hin.")
     with st.spinner("Berechne Ähnlichkeiten …"):
         st.plotly_chart(
             plot_topic_similarity(topic_model, top_n_topics=20),
-            use_container_width=True,
+            width="stretch",
         )
         
 # Top word for top six topics
@@ -179,7 +179,7 @@ with tab_bars:
     st.markdown("##### Top-Keywords")
     st.caption(
     "Die Balkendiagramme zeigen die wichtigsten Keywords für die häufigsten Themen. "
-    "Die Relevanz basiert auf der c-TF-IDF-Metrik, die misst, wie charakteristisch ein Begriff für ein bestimmtes Thema ist. "
+    "Die angezeigten Gewichte stammen aus der gewählten Themenrepräsentation; sie sind keine Wahrscheinlichkeiten. "
     )
     with st.spinner("Erstelle Balkendiagramme …"):
         plot_topic_barcharts(topic_model=topic_model)
@@ -187,9 +187,9 @@ with tab_bars:
 
 # Topic network
 with tab_net:
-    st.markdown("##### Themen-Netzwerk")
+    st.markdown("##### Dokumentenkarte")
     st.caption(
-    "Das Netzwerk zeigt die Verteilung und Nähe der Themen im zweidimensionalen Raum. "
+    "Die Dokumentenkarte zeigt die Verteilung und Nähe der Themen im zweidimensionalen Raum. "
     "Thematisch ähnliche Topics liegen näher beieinander. "
     "Jeder Punkt repräsentiert einen Textbeitrag, die Farben clustern die Punkte nach Thema. "
     )
@@ -205,6 +205,6 @@ with tab_net:
                 width=1000,
                 height=700,
             ),
-            use_container_width=True,
+            width="stretch",
         )
 
