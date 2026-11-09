@@ -47,7 +47,7 @@ class ConfigurationTests(unittest.TestCase):
             self.assertEqual(get_default_params(30, length)['embedding_model'], MULTILINGUAL_MODEL)
 
     def test_configuration_roundtrip(self):
-        self.assertEqual(TrainingConfig.from_dict(self.config.to_dict()), self.config)
+        self.assertEqual(TrainingConfig.from_dict(json.loads(json.dumps(self.config.to_dict()))), self.config)
 
     def test_modeling_ui_disables_invalid_training_without_network(self):
         app = AppTest.from_file(str(ROOT/'pages/2_Modellierung.py'))

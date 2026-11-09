@@ -1,5 +1,8 @@
 # Topic Modeling mit BERTopic
 
+> **Neue React-Oberfläche:** Im Branch `feature/react-workbench` steht eine separate Workbench mit Import · Modellierung · Ergebnissen, ohne Sidebar und mit FastAPI-Backend bereit. [Installation, Architekturentscheidung und Funktionsumfang](docs/react-workbench.md). Die folgende Streamlit-Anleitung bleibt weiterhin gültig.
+
+
 Interaktive Streamlit-Anwendung für explorative Themenanalysen deutscher und englischer Texte. CSV- und Excel-Dateien werden hochgeladen, bereinigt, mit BERTopic modelliert und anschließend als Tabellen und Plotly-Diagramme untersucht.
 
 ## Installation

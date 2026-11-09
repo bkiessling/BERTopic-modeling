@@ -88,8 +88,10 @@ class TrainingConfig:
 
     @classmethod
     def from_dict(cls, params):
+        vectorizer = dict(params['vectorizer'])
+        vectorizer['ngram_range'] = tuple(vectorizer['ngram_range'])
         return cls(embedding_model=params['embedding_model'], language=params['language'],
-                   **params['umap'], **params['hdbscan'], **params['vectorizer'],
+                   **params['umap'], **params['hdbscan'], **vectorizer,
                    representation_models=tuple(params['representation_models']),
                    top_n_words=params.get('top_n_words', 10), random_state=params.get('random_state', 42),
                    name_topics=params.get('name_topics', False), naming_model=params.get('naming_model', 'gpt-4.1-mini'))
