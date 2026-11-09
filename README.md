@@ -157,3 +157,44 @@ Prioritäten für die weitere Entwicklung:
 - Fehlgeschlagene Uploads mit verständlichen Meldungen behandeln, Zeichencodierung und Datenqualität prüfen.
 - Wiederladbaren Modellexport und ein vollständiges Lockfile ergänzen; ungenutzte Einstiege und Module konsolidieren.
 - Bei großen Datenmengen Projektionen begrenzen bzw. gezielt berechnen und Training in einen Hintergrundprozess auslagern.
+
+## Optionale Themennamen mit OpenAI
+
+Die App kann nach dem lokalen BERTopic-Training kurze Themennamen über die OpenAI-API erzeugen. **ChatGPT Pro beinhaltet keine API-Nutzung.** API-Key und Guthaben werden separat unter [OpenAI Platform](https://platform.openai.com/) verwaltet; Schlüssel lassen sich unter [API keys](https://platform.openai.com/api-keys) erstellen.
+
+### API-Key auf deinem Mac hinterlegen
+
+Im Projektverzeichnis die Datei `.streamlit/secrets.toml` mit deinem Editor anlegen:
+
+```toml
+OPENAI_API_KEY = "DEIN_NEUER_OPENAI_API_KEY"
+```
+
+Die Datei ist in `.gitignore` ausgeschlossen und darf nicht committed werden. Alternativ liest die App `OPENAI_API_KEY` oder `BERTOPIC_OPENAI_API_KEY` aus der Prozessumgebung. Die projektspezifische Variable hat Vorrang. Keine Schlüssel in Python-Dateien, Screenshots, Chat-Nachrichten oder Git speichern. Einen bereits geteilten Schlüssel widerrufen und ersetzen.
+
+Streamlit danach vollständig neu starten, im aktivierten Conda-Environment:
+
+```bash
+conda activate bertopic-dev
+python -m streamlit run app.py
+```
+
+In **Modellierung** die standardmäßig ausgeschaltete Checkbox **Themen mit OpenAI benennen (nur Keywords)** aktivieren. Ohne gefundenen Key ist sie ausgegraut. Das Modellfeld verwendet als Ausgangswert `gpt-4.1-mini`; eine andere für das Projekt verfügbare Responses-API-Modellkennung ist möglich. Key-Anwesenheit ist keine Prüfung seiner Gültigkeit oder des Guthabens. Solche Fehler werden beim tatsächlichen Benennen verständlich angezeigt, ohne das erfolgreiche BERTopic-Training zu verwerfen.
+
+In **Analyse** ist die Benennung auch nachträglich möglich. Die Vorschau zeigt die Themen-IDs und Keywords, bevor **Keywords an OpenAI senden und Themen benennen** angeklickt wird. Ein gewöhnlicher UI-Rerun löst keinen neuen API-Aufruf aus. Ein erneuter Klick bzw. ein neues Training mit aktivierter Option kann erneut Kosten verursachen. Es gibt keine automatischen Wiederholungen fehlgeschlagener API-Aufrufe. Aufträge werden in Pakete mit maximal 20 Themen aufgeteilt; bei einem späteren Fehler können bereits Kosten entstanden sein, auch wenn keine neuen Namen übernommen werden.
+
+### Welche Daten werden übertragen?
+
+An `https://api.openai.com/v1/responses` gehen ausschließlich:
+
+- bis zu zehn Keywords je Thema (jeweils maximal 80 Zeichen),
+- die interne Themen-ID und die gewünschte Sprache,
+- die Anweisung zur Benennung und das gewünschte Antwortschema.
+
+Nicht übertragen werden Originaldatei, Original-/bereinigte Dokumenttexte, repräsentative Dokumentauszüge, Dokument-IDs, Dateinamen oder Embeddings. Ausreißer (`-1`) werden nicht benannt. **Keywords sind trotzdem aus den Daten abgeleitet und können Namen oder vertrauliche Begriffe enthalten.** Die Benennung ist daher kein vollständig lokaler Arbeitsschritt und keine automatische Anonymisierung.
+
+Die API-Anfrage verwendet `store=false`. Das ist keine Zusage einer vollständigen Nullspeicherung: [Die Datenverwendungs- und Aufbewahrungsregeln der API](https://platform.openai.com/docs/guides/your-data) gelten weiterhin. Das lokale Programm übermittelt keinen Trainingsdatensatz zur Feinabstimmung, sondern einen Benennungsauftrag an ein bestehendes Modell.
+
+Die Namen verändern weder Cluster noch Keywords. Sie erscheinen in der Themenübersicht, Diagrammbeschriftungen und CSV-/JSON-Exporten. Das Manifest dokumentiert Anbieter, Modell und den Keyword-Modus, niemals den API-Key. Nach Ausreißeränderungen werden Namen verworfen, damit alte Beschriftungen nicht versehentlich als aktuell gelten. Neue Namen lassen sich danach ausdrücklich erzeugen. Generierte Namen fachlich prüfen.
+
+Die Anbindung nutzt den vorhandenen HTTP-Client `requests`, keinen zusätzlichen OpenAI-SDK. Die Tests simulieren API-Antworten und prüfen unter anderem den Datenumfang, deaktivierte Controls, Antwortvalidierung, Fehlersituationen, Benennung in den Diagrammen und das Vermeiden wiederholter Aufrufe. Ein bezahlter Live-Aufruf ist für die Tests weder nötig noch enthalten. In Cloud-Netzen muss `api.openai.com` für HTTPS erreichbar sein; Key-Werte gehören in die sicheren Umgebungs-/Secret-Einstellungen.

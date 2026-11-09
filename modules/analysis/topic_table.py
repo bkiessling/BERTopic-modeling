@@ -10,6 +10,8 @@ def build_topic_table(topic_info: pd.DataFrame, docs: list[str], top_n_words: in
         "Count": "Dokumente (n)", "Percentage": "Anteil (%)",
         "Representation": "Keywords"
     })
+    if "CustomName" in tbl.columns:
+        tbl["Bezeichnung"] = tbl["CustomName"]
     if "Keywords" in tbl.columns:
         tbl["Keywords"] = tbl["Keywords"].apply(
             lambda x: ", ".join(x[:top_n_words]) if isinstance(x, list) else x
@@ -17,7 +19,7 @@ def build_topic_table(topic_info: pd.DataFrame, docs: list[str], top_n_words: in
     for col in ["KeyBERT", "MMR"]:
         if col not in tbl.columns:
             tbl[col] = ""
-    return tbl[["Thema", "Dokumente (n)", "Anteil (%)", "Keywords", "KeyBERT", "MMR"]]
+    return tbl[["Thema", "Bezeichnung", "Dokumente (n)", "Anteil (%)", "Keywords", "KeyBERT", "MMR"]]
 
 
 def compute_topic_stats(topic_info: pd.DataFrame, docs: list[str]) -> tuple[int, float, int]:

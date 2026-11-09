@@ -106,6 +106,13 @@ class ExportTests(unittest.TestCase):
             self.assertEqual(manifest['metadata']['outlier_thresholds'], [.1])
             self.assertIn('bertopic', manifest['versions'])
 
+    def test_export_includes_custom_topic_names(self):
+        info = pd.DataFrame({'Topic':[0], 'Name':['auto'], 'CustomName':['Solarenergie']})
+        archive = build_result_archive(['solar strom'], [1], [0], info, {})
+        with zipfile.ZipFile(io.BytesIO(archive)) as output:
+            self.assertEqual(json.loads(output.read('documents.json'))[0]['topic_name'], 'Solarenergie')
+            self.assertEqual(json.loads(output.read('topics.json'))[0]['CustomName'], 'Solarenergie')
+
     def test_reject_misaligned_documents(self):
         with self.assertRaises(ValueError):
             build_result_archive(['text'], [], [0], pd.DataFrame(), {})

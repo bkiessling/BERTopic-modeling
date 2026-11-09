@@ -21,6 +21,8 @@ def build_result_archive(documents, ids, topics, topic_info, config, metadata=No
     if len(documents) != len(ids) or len(documents) != len(topics):
         raise ValueError('Dokumente, IDs und Themenzuordnungen müssen gleich lang sein.')
     frame = pd.DataFrame({'id': ids, 'text': documents, 'topic': topics})
+    if 'CustomName' in topic_info.columns:
+        frame['topic_name'] = frame.topic.map(dict(zip(topic_info.Topic, topic_info.CustomName)))
     manifest = {
         'schema_version': 1,
         'document_count': len(documents),

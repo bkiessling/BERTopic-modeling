@@ -23,3 +23,6 @@ numba==0.61.2 ; sys_platform == "darwin" and platform_machine == "x86_64"
 
 # Arrow 26 requires NumPy 2 at runtime; retain NumPy 1 support on Intel Macs.
 pyarrow==17.0.0 ; sys_platform == "darwin" and platform_machine == "x86_64"
+
+# HTTP client for optional OpenAI topic naming (no SDK required).
+requests==2.34.2

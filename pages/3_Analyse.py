@@ -4,6 +4,8 @@ import logging
 
 # Modules
 from modules.analysis.export import build_result_archive
+from modules.analysis.topic_naming import TopicNamingError, topic_keywords
+from modules.ui.topic_naming import openai_key, generate_names
 from modules.analysis.topic_table import build_topic_table, compute_topic_stats
 from modules.analysis.document_table import build_document_table
 
@@ -47,17 +49,45 @@ threshold = st.sidebar.slider(
 # Reduce outliers
 if st.sidebar.button("Outlier reduzieren"):
     if analysis.reduce_outliers(threshold):
+        st.session_state.pop("topic_barchart_selection", None)
+        st.info("Themen geändert: vorhandene KI-Namen wurden verworfen und können neu erzeugt werden.")
         st.success("Outlier erfolgreich reduziert")
     else:
         st.info("Keine Ausreißer vorhanden.")
 
 if st.sidebar.button("Outlier zurücksetzen"):
     if analysis.restore_outliers():
+        st.session_state.pop("topic_barchart_selection", None)
+        st.info("Themen geändert: vorhandene KI-Namen wurden verworfen.")
         st.success("Outlier wurden zurückgesetzt.")
     else:
         st.info("Keine ursprünglichen Zuordnungen gespeichert. Bitte zuerst Ausreißer reduzieren.")
 
-topic_info = result.topic_info
+notice = st.session_state.pop("naming_notice", None)
+if notice:
+    st.warning(notice)
+
+with st.expander("Themennamen mit OpenAI (optional)"):
+    keywords = topic_keywords(topic_model)
+    st.caption("Nur die unten gezeigten Themen-IDs und Keywords werden mit der gewünschten Sprache übertragen. Keine Originaltexte oder Dokumentauszüge. Keywords können vertrauliche Begriffe enthalten. Die API wird separat abgerechnet, auch mit ChatGPT Pro.")
+    st.dataframe(pd.DataFrame([{"Thema": topic, "Keywords": ", ".join(words)} for topic, words in keywords.items()]),
+                 hide_index=True, width="stretch")
+    naming_key = openai_key()
+    if not naming_key:
+        st.info("Kein OpenAI-API-Key vorhanden. Bitte lokal in Streamlit-Secrets oder als Umgebungsvariable hinterlegen und die App neu starten.")
+    api_model = st.text_input("OpenAI-Modell", value=result.config.naming_model,
+                              disabled=not bool(naming_key), key="analysis_openai_model")
+    if st.button("Keywords an OpenAI senden und Themen benennen", disabled=not bool(naming_key) or not keywords):
+        try:
+            with st.spinner("Erzeuge Themennamen …"):
+                generate_names(analysis, naming_key, api_model.strip())
+        except TopicNamingError as exc:
+            st.warning(str(exc))
+        else:
+            st.session_state.pop("topic_barchart_selection", None)
+            st.success("Themennamen aktualisiert. Bitte fachlich prüfen.")
+
+topic_info = analysis.named_topic_info()
 display_topics = build_topic_table(topic_info, docs, top_n_words)
 
 with st.expander("Ergebnisse exportieren"):
@@ -69,6 +99,7 @@ with st.expander("Ergebnisse exportieren"):
                                            "text_columns": analysis.text_columns,
                                            "preprocessing": analysis.preprocessing,
                                            "outlier_thresholds": analysis.outlier_thresholds,
+                                           "topic_naming": analysis.naming_metadata,
                                        })
     except Exception:
         logging.getLogger(__name__).exception("Ergebnisexport fehlgeschlagen")
@@ -164,7 +195,7 @@ with tab_sim:
                "Eine hohe Kosinus-Ähnlichkeit weist auf eine starke thematische Überschneidung hin.")
     with st.spinner("Berechne Ähnlichkeiten …"):
         st.plotly_chart(
-            plot_topic_similarity(topic_model, top_n_topics=20),
+            plot_topic_similarity(topic_model, top_n_topics=20, topic_names=analysis.topic_names),
             width="stretch",
         )
         
@@ -176,7 +207,7 @@ with tab_bars:
     "Die angezeigten Gewichte stammen aus der gewählten Themenrepräsentation; sie sind keine Wahrscheinlichkeiten. "
     )
     with st.spinner("Erstelle Balkendiagramme …"):
-        plot_topic_barcharts(topic_model=topic_model)
+        plot_topic_barcharts(topic_model=topic_model, topic_names=analysis.topic_names)
 
 
 # Topic network
@@ -194,6 +225,7 @@ with tab_net:
                 topics=topic_model.topics_,  # <- pass topics explicitly
                 docs=docs,
                 embeddings=result.embeddings,
+                topic_names=analysis.topic_names,
                 dim_reduction="umap",
                 top_n_legend=20,
                 width=1000,

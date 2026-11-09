@@ -9,3 +9,8 @@ htmlcov/
 *.ipynb
 *.xlsx
 *.csv
+
+# Local credentials
+.streamlit/secrets.toml
+.env
+.env.*

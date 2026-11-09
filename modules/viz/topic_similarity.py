@@ -4,7 +4,8 @@ import plotly.graph_objects as go
 from sklearn.metrics.pairwise import cosine_similarity
 
 
-def plot_topic_similarity(topic_model, top_n_topics: int = 20):
+def plot_topic_similarity(topic_model, top_n_topics: int = 20, topic_names=None):
+    topic_names = topic_names or {}
     info = topic_model.get_topic_info()
     selected = info[info.Topic != -1].nlargest(top_n_topics, 'Count')
     if selected.empty:
@@ -18,7 +19,7 @@ def plot_topic_similarity(topic_model, top_n_topics: int = 20):
     embeddings = np.asarray(topic_model.topic_embeddings_)
     indices = [embedding_rows[topic] for topic in selected.Topic]
     similarity = cosine_similarity(embeddings[indices])
-    labels = [f"{topic}_" + '_'.join(word for word, _ in (topic_model.get_topic(topic) or [])[:3])
+    labels = [f"{topic}_{topic_names[topic]}" if topic in topic_names else f"{topic}_" + '_'.join(word for word, _ in (topic_model.get_topic(topic) or [])[:3])
               for topic in selected.Topic]
     fig = go.Figure(go.Heatmap(
         z=similarity[::-1], x=labels, y=labels[::-1],

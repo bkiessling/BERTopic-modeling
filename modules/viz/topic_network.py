@@ -16,6 +16,7 @@ def plot_topic_network(
     top_n_legend: int | None = 20,
     width: int = 1000,
     height: int = 700,
+    topic_names=None,
 ):
     """Visualize topic network with legend labels and cluster centers labeled once."""
 
@@ -33,6 +34,7 @@ def plot_topic_network(
     # Topic info
     tinfo = topic_model.get_topic_info()
     label_map = dict(zip(tinfo.Topic, tinfo.Name))
+    label_map.update({topic: f"{topic}_{label}" for topic, label in (topic_names or {}).items()})
     count_map = dict(zip(tinfo.Topic, tinfo.Count))
 
     # Create DataFrame for documents
@@ -79,12 +81,7 @@ def plot_topic_network(
 
     # Optionally hide topics not in top-n
     if top_n_legend is not None:
-        top_labels = (
-            tinfo[tinfo.Topic != -1]
-            .nlargest(top_n_legend, "Count")
-            ["Name"]
-            .tolist()
-        )
+        top_labels = [label_map[topic] for topic in tinfo[tinfo.Topic != -1].nlargest(top_n_legend, "Count").Topic]
         fig.for_each_trace(
             lambda tr: tr.update(visible="legendonly")
             if tr.name not in top_labels and tr.name != "-1_outlier"

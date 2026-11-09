@@ -14,6 +14,8 @@ from modules.modeling.encoders import build_encoder
 import torch
 from modules.modeling.configuration import TrainingConfig, get_default_params
 from modules.ui.analysis_state import AnalysisState
+from modules.ui.topic_naming import naming_options, openai_key, generate_names
+from modules.analysis.topic_naming import TopicNamingError
 
 
 # -------------------------------
@@ -53,6 +55,7 @@ with st.sidebar:
     selected_reprs = representation_inputs(default_params)
     # Top-N words shown per topic
     top_n_words = top_n_words_input(default_params)
+    use_naming, naming_model = naming_options()
 
 
 # -------------------------------
@@ -88,6 +91,7 @@ model_params = {
     },
     "representation_models": selected_reprs,
     "top_n_words": top_n_words,
+    "name_topics": use_naming, "naming_model": naming_model,
 }
 
 config = TrainingConfig.from_dict(model_params)
@@ -127,6 +131,12 @@ if st.button("Modell trainieren", disabled=bool(validation_errors)):
         progress_bar.empty()
         st.error("Das Modell konnte nicht geladen oder trainiert werden. Bitte Netzwerkzugriff, installierte Abhängigkeiten und Serverprotokoll prüfen.")
     else:
+        if config.name_topics:
+            status_text.text("Benenne Themen anhand der Keywords …")
+            try:
+                generate_names(analysis, openai_key(), config.naming_model)
+            except TopicNamingError as exc:
+                st.session_state["naming_notice"] = str(exc)
         st.session_state["analysis"] = analysis
         st.session_state.pop("topic_barchart_selection", None)
         st.switch_page("pages/3_Analyse.py")

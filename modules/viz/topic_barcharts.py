@@ -10,6 +10,7 @@ def plot_topic_barcharts(
     max_select: int = 4,
     width: int = 1000,
     height_per_chart: int = 400,
+    topic_names=None,
 ):
     """
     Interaktive Version des Topic-Barplots mit auswählbaren Themen.
@@ -22,7 +23,9 @@ def plot_topic_barcharts(
     # -- Lade und bereite Topic-Infos vor
     info_df = topic_model.get_topic_info()
     all_topics = info_df[info_df.Topic != -1].copy()
-    all_topics["Label"] = all_topics["Name"]
+    topic_names = topic_names or {}
+    all_topics["Label"] = [f"{int(row.Topic)}_{topic_names[int(row.Topic)]}" if int(row.Topic) in topic_names else row.Name
+                           for row in all_topics.itertuples()]
 
     # -- Voreinstellung: Top-N Topics nach Häufigkeit
     top_labels = (

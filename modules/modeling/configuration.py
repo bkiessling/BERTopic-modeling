@@ -71,6 +71,8 @@ class TrainingConfig:
     representation_models: tuple[str, ...] = ('KeyBERT', 'MMR')
     top_n_words: int = 10
     random_state: int = 42
+    name_topics: bool = False
+    naming_model: str = "gpt-4.1-mini"
 
     def to_dict(self):
         return {
@@ -80,6 +82,7 @@ class TrainingConfig:
             'vectorizer': {'ngram_range': self.ngram_range, 'min_df': self.min_df, 'max_df': self.max_df},
             'representation_models': list(self.representation_models), 'top_n_words': self.top_n_words,
             'random_state': self.random_state,
+            'name_topics': self.name_topics, 'naming_model': self.naming_model,
             'embedding_settings': embedding_settings(self.embedding_model),
         }
 
@@ -88,7 +91,8 @@ class TrainingConfig:
         return cls(embedding_model=params['embedding_model'], language=params['language'],
                    **params['umap'], **params['hdbscan'], **params['vectorizer'],
                    representation_models=tuple(params['representation_models']),
-                   top_n_words=params.get('top_n_words', 10), random_state=params.get('random_state', 42))
+                   top_n_words=params.get('top_n_words', 10), random_state=params.get('random_state', 42),
+                   name_topics=params.get('name_topics', False), naming_model=params.get('naming_model', 'gpt-4.1-mini'))
 
     def validate(self, documents):
         errors = []
@@ -132,4 +136,6 @@ class TrainingConfig:
                 errors.append('min_df darf die durch max_df erlaubte Häufigkeit nicht überschreiten.')
         if set(self.representation_models) - {'KeyBERT', 'MMR'}:
             errors.append('Unbekannte Themenrepräsentation; erlaubt sind KeyBERT und MMR.')
+        if self.name_topics and (not self.naming_model.strip() or len(self.naming_model) > 100):
+            errors.append('Eine gültige OpenAI-Modellkennung für die Benennung angeben.')
         return errors

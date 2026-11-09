@@ -1,6 +1,9 @@
 """Exercise real BERTopic training and all analysis charts through Streamlit."""
 from pathlib import Path
 import unittest
+import json
+from unittest.mock import Mock
+from modules.analysis.topic_naming import TopicNamingError
 from unittest.mock import patch
 import numpy as np
 import pandas as pd
@@ -20,6 +23,10 @@ class OfflineEncoder(BaseEmbedder):
         return np.vstack([np.eye(3)[i // 20] + rng.normal(0, .03, 3) for i in range(len(documents))])
 
 class AnalysisWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        from streamlit import cache_resource
+        cache_resource.clear()
+
     @classmethod
     def setUpClass(cls):
         cls.docs = [text + ' ' + str(i) for text in (
@@ -82,6 +89,44 @@ class AnalysisWorkflowTests(unittest.TestCase):
         self.assertFalse(app.exception, list(app.exception))
         self.assertEqual(len(app.get('plotly_chart')), 3)
         self.assertTrue(any('Analyse bleibt verfügbar' in e.value for e in app.error))
+
+    def test_manual_names_appear_in_analysis_without_repeat_api_calls(self):
+        app = AppTest.from_file(str(ROOT / 'pages/3_Analyse.py'))
+        app.session_state['analysis'] = AnalysisState(self.result, list(range(60)))
+        labels = [{'topic_id': int(topic), 'label': f'KI Thema {topic}'}
+                  for topic in self.info.Topic if topic != -1]
+        reply = Mock(status_code=200, json=lambda: {'status':'completed', 'output':[
+            {'type':'message','content':[{'type':'output_text','text':json.dumps({'topics':labels})}]}]})
+        with patch('modules.ui.topic_naming.openai_key', return_value='test-only-key'), patch('modules.analysis.topic_naming.requests.post', return_value=reply) as post:
+            app.run(timeout=60)
+            next(button for button in app.button if button.label.startswith('Keywords an OpenAI')).click().run(timeout=60)
+            self.assertFalse(app.exception, list(app.exception))
+            self.assertEqual(len(app.get('plotly_chart')), 3)
+            self.assertTrue(any('Bezeichnung' in df.value.columns and df.value.Bezeichnung.str.startswith('KI Thema').any()
+                                for df in app.dataframe))
+            state = app.session_state['analysis']
+            self.assertTrue(state.topic_names)
+            for chart in app.get('plotly_chart'):
+                self.assertIn('KI Thema', chart.proto.spec)
+            app.run(timeout=30)
+            self.assertEqual(post.call_count, 1)
+
+    def test_automatic_naming_failure_preserves_trained_model(self):
+        app = AppTest.from_file(str(ROOT / 'app.py'))
+        for key, value in {'cleaned_data': pd.DataFrame({'id':range(60), 'text':self.docs}),
+                           'id_column':'id','text_column':'text'}.items():
+            app.session_state[key] = value
+        with patch('modules.ui.topic_naming.openai_key', return_value='test-only-key'), patch('modules.modeling.encoders.SentenceTransformer', return_value=OfflineEncoder()), patch('modules.ui.topic_naming.generate_names', side_effect=TopicNamingError('API-Testfehler')):
+            app.run(timeout=60)
+            app.switch_page('pages/2_Modellierung.py').run(timeout=60)
+            app.selectbox(key='model_language').select('Englisch').run(timeout=30)
+            app.multiselect[0].set_value([]).run(timeout=30)
+            app.checkbox(key='use_openai_naming').check().run(timeout=30)
+            app.button[0].click().run(timeout=90)
+        self.assertFalse(app.exception, list(app.exception))
+        self.assertEqual(len(app.get('plotly_chart')), 3)
+        self.assertTrue(any('API-Testfehler' in w.value for w in app.warning))
+        self.assertEqual(len(app.session_state['analysis'].result.documents), 60)
 
     def test_analysis_with_only_outliers(self):
         from test_visualizations import TopicModel
