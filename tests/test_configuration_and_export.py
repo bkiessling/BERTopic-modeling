@@ -56,7 +56,7 @@ class ConfigurationTests(unittest.TestCase):
         app.session_state['id_column'] = 'id'
         app.run(timeout=60)
         self.assertFalse(app.exception, list(app.exception))
-        self.assertTrue(app.button[0].disabled)
+        self.assertTrue(next(button for button in app.button if button.label == 'Modell trainieren').disabled)
         self.assertTrue(any('Mindestens vier' in e.value for e in app.error))
         app.selectbox(key='model_language').select('Englisch').run(timeout=30)
         self.assertFalse(app.exception, list(app.exception))

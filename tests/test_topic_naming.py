@@ -8,10 +8,11 @@ import numpy as np
 import pandas as pd
 import requests
 from streamlit.testing.v1 import AppTest
-from modules.analysis.topic_naming import name_topics, topic_keywords, TopicNamingError
+from modules.analysis.topic_naming import name_topics, topic_keywords, TopicNamingError, NAMING_MODELS, check_model_access
 from modules.modeling.configuration import TrainingConfig, ENGLISH_MODEL
 from modules.modeling.train_model import TrainingResult
 from modules.ui.analysis_state import AnalysisState
+from modules.ui.topic_naming import openai_key
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -83,6 +84,31 @@ class TopicNamingTests(unittest.TestCase):
         self.assertFalse(app.exception, list(app.exception))
         self.assertFalse(app.checkbox(key='use_openai_naming').disabled)
         self.assertFalse(app.checkbox(key='use_openai_naming').value)
+
+    def test_secrets_key_takes_precedence_over_old_environment(self):
+        with patch('modules.ui.topic_naming.st.secrets', {'OPENAI_API_KEY':'project-test-key'}), patch.dict(os.environ, {'OPENAI_API_KEY':'old-test-key','BERTOPIC_OPENAI_API_KEY':'old-project-test-key'}):
+            self.assertEqual(openai_key(), 'project-test-key')
+
+    def test_model_access_check_does_not_generate_or_send_prompts(self):
+        reply = Mock(status_code=200, json=lambda: {'id':'gpt-4.1-mini','object':'model'})
+        with patch('modules.analysis.topic_naming.requests.get', return_value=reply) as get, patch('modules.analysis.topic_naming.requests.post') as post:
+            check_model_access('test-only-key', 'gpt-4.1-mini')
+            post.assert_not_called()
+            self.assertEqual(get.call_args.args[0], 'https://api.openai.com/v1/models/gpt-4.1-mini')
+            self.assertNotIn('json', get.call_args.kwargs)
+        with patch('modules.analysis.topic_naming.requests.get', return_value=Mock(status_code=401)):
+            with self.assertRaisesRegex(TopicNamingError, 'HTTP 401'):
+                check_model_access('test-only-key', 'gpt-4.1-mini')
+
+    def test_all_openai_models_are_selectable_without_generation(self):
+        with patch('modules.ui.topic_naming.openai_key', return_value='test-only-key'), patch('modules.analysis.topic_naming.requests.post') as post:
+            app = AppTest.from_file(str(ROOT/'pages/2_Modellierung.py')).run(timeout=60)
+            self.assertEqual(len(app.selectbox(key='openai_naming_model').options), len(NAMING_MODELS))
+            for model in NAMING_MODELS:
+                app.selectbox(key='openai_naming_model').select(model).run(timeout=30)
+                self.assertFalse(app.exception, list(app.exception))
+                self.assertEqual(app.selectbox(key='openai_naming_model').value, model)
+            post.assert_not_called()
 
     def test_names_are_view_metadata_and_clear_after_assignment_change(self):
         model = Mock()

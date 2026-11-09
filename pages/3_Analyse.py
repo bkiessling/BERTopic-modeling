@@ -5,7 +5,7 @@ import logging
 # Modules
 from modules.analysis.export import build_result_archive
 from modules.analysis.topic_naming import TopicNamingError, topic_keywords
-from modules.ui.topic_naming import openai_key, generate_names
+from modules.ui.topic_naming import openai_key, generate_names, naming_model_select
 from modules.analysis.topic_table import build_topic_table, compute_topic_stats
 from modules.analysis.document_table import build_document_table
 
@@ -75,8 +75,7 @@ with st.expander("Themennamen mit OpenAI (optional)"):
     naming_key = openai_key()
     if not naming_key:
         st.info("Kein OpenAI-API-Key vorhanden. Bitte lokal in Streamlit-Secrets oder als Umgebungsvariable hinterlegen und die App neu starten.")
-    api_model = st.text_input("OpenAI-Modell", value=result.config.naming_model,
-                              disabled=not bool(naming_key), key="analysis_openai_model")
+    api_model = naming_model_select("analysis_openai_model", disabled=not bool(naming_key), default=result.config.naming_model)
     if st.button("Keywords an OpenAI senden und Themen benennen", disabled=not bool(naming_key) or not keywords):
         try:
             with st.spinner("Erzeuge Themennamen …"):

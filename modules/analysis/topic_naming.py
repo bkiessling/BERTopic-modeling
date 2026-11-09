@@ -5,10 +5,51 @@ import requests
 
 DEFAULT_NAMING_MODEL = 'gpt-4.1-mini'
 OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
+NAMING_MODELS = {
+    'gpt-4.1-mini': 'GPT-4.1 mini · Standard',
+    'gpt-4.1-nano': 'GPT-4.1 nano · kompakt',
+    'gpt-4.1': 'GPT-4.1',
+    'gpt-5-mini': 'GPT-5 mini',
+    'gpt-5-nano': 'GPT-5 nano',
+}
 
 
 class TopicNamingError(Exception):
     """Safe, user-readable failure without credentials or provider response bodies."""
+
+
+def _check_status(response):
+    if response.status_code == 200:
+        return
+    messages = {
+        401: 'OpenAI hat den API-Key abgelehnt (HTTP 401). Prüfe die angezeigte Key-Quelle. Verwende einen aktiven API-Key von platform.openai.com/api-keys, keinen Platzhalter oder Schlüssel eines anderen Anbieters.',
+        403: 'Kein Zugriff auf OpenAI oder das ausgewählte Modell (HTTP 403). Projektberechtigungen und Netzwerkzugriff prüfen.',
+        404: 'Das OpenAI-Modell ist für dieses Projekt nicht verfügbar (HTTP 404). Anderes Modell auswählen.',
+        429: 'OpenAI-Limit oder API-Guthaben erschöpft (HTTP 429). API-Abrechnung und Limits prüfen.',
+    }
+    raise TopicNamingError(messages.get(response.status_code, 'OpenAI konnte die Anfrage nicht bearbeiten.'))
+
+
+def check_model_access(api_key, model):
+    """Check authentication/model visibility, without prompts or token generation."""
+    if not api_key or not api_key.strip():
+        raise TopicNamingError('Kein OpenAI-API-Key vorhanden.')
+    if model not in NAMING_MODELS:
+        raise TopicNamingError('Bitte ein Modell aus dem Dropdown auswählen.')
+    try:
+        response = requests.get(f'https://api.openai.com/v1/models/{model}',
+                                headers={'Authorization': f'Bearer {api_key}'}, timeout=(10, 20))
+    except requests.RequestException:
+        raise TopicNamingError('OpenAI ist nicht erreichbar. Netzwerkzugriff prüfen.') from None
+    _check_status(response)
+    try:
+        body = response.json()
+        if not isinstance(body, dict) or body.get('object') != 'model' or not isinstance(body.get('id'), str):
+            raise ValueError('Invalid model response')
+    except (ValueError, TypeError):
+        raise TopicNamingError('OpenAI hat keine gültige Modellbestätigung geliefert.') from None
+    # A key may permit Responses but lack model-list/read permissions.
+    # A failed check must not automatically disable naming.
 
 
 def topic_keywords(topic_model, max_words=10):
@@ -60,10 +101,7 @@ def name_topics(keywords, language, api_key, model=DEFAULT_NAMING_MODEL):
                                      timeout=(10, 60))
         except requests.RequestException:
             raise TopicNamingError('OpenAI ist nicht erreichbar. Netzwerkzugriff prüfen; die lokale Analyse bleibt erhalten.') from None
-        if response.status_code != 200:
-            messages = {401: 'OpenAI hat den API-Key abgelehnt.', 403: 'Kein Zugriff auf OpenAI oder das ausgewählte Modell.',
-                        404: 'Das OpenAI-Modell ist nicht verfügbar.', 429: 'OpenAI-Limit oder API-Guthaben erschöpft.'}
-            raise TopicNamingError(messages.get(response.status_code, 'OpenAI konnte die Themen nicht benennen.'))
+        _check_status(response)
         try:
             body = response.json()
             if body.get('status') != 'completed':
