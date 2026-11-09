@@ -2,6 +2,14 @@
 
 Die neue Oberfläche liegt im Branch `feature/react-workbench`. Die Streamlit-App ist weiterhin über `streamlit run app.py` nutzbar. Der neue Branch ersetzt weder `dev` noch `main`.
 
+## Gestaltung und Datenvorschau
+
+Die Oberfläche verwendet `#0C1754` als Hauptakzent, `#2671C6` für Hover/Fokus und einen fast weißen grauen Hintergrund (`#FAFBFC`). Die Marke lautet **themncluster**, der Titel **#NDRfragt Topic Modeling**. Die Datenquelle nutzt die volle Breite; darunter stehen Textspalten als Mehrfachauswahl im Dropdown sowie die übrigen Import-Einstellungen.
+
+In der Originalvorschau steht zuerst die gewählte ID-Spalte, bei automatisch zu erzeugenden IDs zunächst eine leere ID-Spalte. Danach erscheinen ausschließlich ausgewählte Textspalten. Nicht gewählte Quellspalten bleiben ausgeblendet. Nach der Bereinigung lassen sich die tatsächlich verwendeten Texte einschließlich ihrer IDs separat aufklappen.
+
+![Import mit gefilterter Datenvorschau](screenshots/react-import.png)
+
 ## Bewertung der Architektur
 
 Streamlit war für den Prototyp passend. Für die gewünschte Oberfläche – klare Arbeitsschritte, kompakte Parameter im Hauptbereich, kontrollierter Zustand und gezieltes Laden von Diagrammen – lohnt sich eine separate Weboberfläche. Die eigentliche Themenmodellierung bleibt unverändert in Python.

@@ -1,13 +1,16 @@
 import { test, expect } from "@playwright/test";
 const csv =
-  "id,text\n" +
+  "id,text,notes\n" +
   [
     "katze hund tier futter",
     "fussball sport stadion tor",
     "computer software daten technik",
   ]
     .flatMap((text, group) =>
-      Array.from({ length: 20 }, (_, i) => `${group * 20 + i},${text} ${i}`),
+      Array.from(
+        { length: 20 },
+        (_, i) => `${group * 20 + i},${text} ${i},notiz`,
+      ),
     )
     .join("\n");
 
@@ -19,11 +22,24 @@ test("clean desktop and mobile import, connection dialog", async ({
   await page.goto("/");
   await expect(page.getByText("Lokal verbunden")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Gib deinen Texten einen Platz." }),
+    page.getByRole("heading", { name: "Daten importieren" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "02 Modellierung" }),
   ).toBeDisabled();
+  await expect(
+    page.getByRole("heading", {
+      name: "#NDRfragt Topic Modeling",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("BERTopic workspace", { exact: true }),
+  ).toHaveCount(0);
+  const upload = await page.locator(".upload-card").boundingBox();
+  const selection = await page.locator(".selection-card").boundingBox();
+  expect(Math.abs(upload!.width - selection!.width)).toBeLessThan(1);
+  expect(selection!.y).toBeGreaterThan(upload!.y + upload!.height);
   await page.screenshot({
     path: info.outputPath("import-desktop.png"),
     fullPage: true,
@@ -55,14 +71,54 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(page.getByText("Lokal verbunden")).toBeVisible();
+  await page.getByLabel("CSV- oder Excel-Datei auswählen").setInputFiles({
+    name: "texte.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(csv),
+  });
+  await expect(page.getByText("60 Zeilen · 3 Spalten")).toBeVisible();
+  await page.getByRole("button", { name: "Textspalten", exact: true }).click();
+  await expect(
+    page.getByRole("group", { name: "Textspalten auswählen" }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("Textspalte text", { exact: true }),
+  ).toBeChecked();
+  const preview = page.locator(".preview-card");
+  await expect(preview.locator("th")).toHaveText(["ID", "text"]);
+  await expect(
+    preview.locator("tbody tr").first().locator("td").first(),
+  ).toHaveText("");
+  await page.getByLabel("Textspalte notes", { exact: true }).check();
+  await expect(
+    page.getByRole("button", { name: "Textspalten", exact: true }),
+  ).toContainText("text, notes");
+  await expect(preview.locator("th")).toHaveText(["ID", "text", "notes"]);
+  await page.keyboard.press("Escape");
+  await page.getByLabel("ID-Spalte", { exact: true }).selectOption("id");
+  await expect(preview.locator("th")).toHaveText(["id", "text", "notes"]);
+  await expect(
+    preview.locator("tbody tr").first().locator("td").first(),
+  ).toHaveText("0");
   await page
-    .getByLabel("CSV- oder Excel-Datei auswählen")
-    .setInputFiles({
-      name: "texte.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(csv),
-    });
-  await expect(page.getByText("60 Zeilen · 2 Spalten")).toBeVisible();
+    .getByLabel("ID-Spalte", { exact: true })
+    .selectOption("ID generieren");
+  await page.getByRole("button", { name: "Textspalten", exact: true }).click();
+  await page.getByLabel("Textspalte notes", { exact: true }).uncheck();
+  await expect(preview.locator("th")).toHaveText(["ID", "text"]);
+  await page.getByLabel("Textspalte text", { exact: true }).uncheck();
+  await expect(
+    page.getByRole("button", { name: "Daten bereinigen", exact: true }),
+  ).toBeDisabled();
+  await page.getByLabel("Textspalte text", { exact: true }).check();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("group", { name: "Textspalten auswählen" }),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: info.outputPath("import-selected.png"),
+    fullPage: true,
+  });
   await page
     .getByRole("button", { name: "Daten bereinigen", exact: true })
     .click();

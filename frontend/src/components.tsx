@@ -212,3 +212,85 @@ export function Plot({ figure }: { figure: any }) {
     />
   );
 }
+
+export function MultiSelect({
+  label,
+  values,
+  options,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  values: string[];
+  options: string[];
+  onChange: (values: string[]) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [open]);
+  return (
+    <div
+      className="multiselect"
+      ref={root}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          setOpen(false);
+          trigger.current?.focus();
+        }
+      }}
+    >
+      <button
+        type="button"
+        ref={trigger}
+        className="multiselect-trigger"
+        aria-label={label}
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => setOpen(!open)}
+      >
+        <span>
+          {values.length ? values.join(", ") : "Textspalten auswählen"}
+        </span>
+        <span className="selection-count">{values.length}</span>
+        <ChevronDown size={16} />
+      </button>
+      {open && !disabled && (
+        <div
+          className="multiselect-panel"
+          role="group"
+          aria-label={`${label} auswählen`}
+        >
+          {options.map((option) => (
+            <label className="multiselect-option" key={option}>
+              <input
+                type="checkbox"
+                aria-label={`Textspalte ${option}`}
+                checked={values.includes(option)}
+                onChange={() =>
+                  onChange(
+                    values.includes(option)
+                      ? values.filter((value) => value !== option)
+                      : [...values, option],
+                  )
+                }
+              />
+              <span>{option}</span>
+            </label>
+          ))}
+          {!options.length && (
+            <span className="muted">Keine Textspalten vorhanden.</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

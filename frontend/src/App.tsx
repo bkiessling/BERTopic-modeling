@@ -26,7 +26,15 @@ import {
 } from "lucide-react";
 import { api, post, defaults, idleJob } from "./api";
 import type { Job, Params, Row } from "./api";
-import { DataTable, Field, Help, Plot, Range, Select } from "./components";
+import {
+  DataTable,
+  Field,
+  Help,
+  Plot,
+  Range,
+  Select,
+  MultiSelect,
+} from "./components";
 const steps = [
   { label: "Import", icon: UploadCloud },
   { label: "Modellierung", icon: SlidersHorizontal },
@@ -317,6 +325,19 @@ export default function App() {
   );
   const topics: Row[] = result?.topics || [],
     keywords: Row[] = result?.keywords || [];
+  const idPreviewColumn =
+    idCol === "ID generieren"
+      ? textCols.includes("ID")
+        ? "ID (generiert)"
+        : "ID"
+      : idCol;
+  const sourcePreview: Row[] = (uploaded?.preview || []).map((row: Row) => {
+    const selected: Row = {
+      [idPreviewColumn]: idCol === "ID generieren" ? "" : row[idCol],
+    };
+    for (const column of textCols) selected[column] = row[column];
+    return selected;
+  });
   const invalid: string[] = [];
   if (params && cleaned) {
     if (cleaned.rows < 4)
@@ -346,9 +367,7 @@ export default function App() {
           <span className="brand-icon">
             <Layers3 size={21} />
           </span>
-          Themenstudio
-          <span className="brand-divider" />
-          <span className="brand-sub">BERTopic workspace</span>
+          themncluster
         </a>
         <button className="connection" onClick={() => setSettings(true)}>
           <span className={token ? "status-dot" : "status-dot offline"} />
@@ -359,13 +378,7 @@ export default function App() {
       <main>
         <div className="workspace-heading">
           <div>
-            <p className="eyebrow">DEIN ANALYSE-WORKSPACE</p>
-            <h1>
-              Aus Text wird Überblick<span>.</span>
-            </h1>
-            <p className="subtitle">
-              Themen entdecken. Zusammenhänge verstehen. Ergebnisse teilen.
-            </p>
+            <h1>#NDRfragt Topic Modeling</h1>
           </div>
           <span className="local-badge">
             <ShieldCheck size={15} />
@@ -457,11 +470,7 @@ export default function App() {
             <section className="section-heading">
               <div>
                 <span className="section-kicker">01 / IMPORT</span>
-                <h2>Gib deinen Texten einen Platz.</h2>
-                <p>
-                  Importiere deine Datei und wähle aus, welche Inhalte du
-                  untersuchen möchtest.
-                </p>
+                <h2>Daten importieren</h2>
               </div>
               <span className="quiet-chip">CSV & Excel</span>
             </section>
@@ -549,33 +558,17 @@ export default function App() {
                       label="Textspalten"
                       help="Mehrere Spalten werden zu einzelnen Textbeiträgen untereinander angeordnet."
                     >
-                      <div className="column-options">
-                        {(uploaded.text_columns as string[]).map((col) => (
-                          <label
-                            className={
-                              textCols.includes(col)
-                                ? "check-chip selected"
-                                : "check-chip"
-                            }
-                            key={col}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={textCols.includes(col)}
-                              disabled={blocked}
-                              onChange={() => {
-                                setTextCols((old) =>
-                                  old.includes(col)
-                                    ? old.filter((c) => c !== col)
-                                    : [...old, col],
-                                );
-                                setCleaned(null);
-                              }}
-                            />
-                            {col}
-                          </label>
-                        ))}
-                      </div>
+                      <MultiSelect
+                        label="Textspalten"
+                        values={textCols}
+                        options={uploaded.text_columns}
+                        disabled={blocked}
+                        onChange={(values) => {
+                          setTextCols(values);
+                          if (values.includes(idCol)) setIdCol("ID generieren");
+                          setCleaned(null);
+                        }}
+                      />
                       {!uploaded.text_columns.length && (
                         <p className="error-text">
                           Keine Textspalten gefunden. Trennzeichen prüfen.
@@ -666,14 +659,12 @@ export default function App() {
                 <div className="preview-heading">
                   <div>
                     <h3>
-                      {cleaned
-                        ? "Bereit für die Analyse"
-                        : "Ein erster Blick auf deine Daten"}
+                      {cleaned ? "Bereit für die Analyse" : "Datenvorschau"}
                     </h3>
                     <p>
                       {cleaned
-                        ? "URLs, Zahlen und Sonderzeichen entfernt. Texte in Kleinbuchstaben umgewandelt."
-                        : "Vorschau der ersten acht Zeilen."}
+                        ? "Ausgewählte Originalspalten. Die bereinigten Texte sind darunter aufklappbar."
+                        : "Ausgewählte Spalten · erste acht Zeilen."}
                     </p>
                   </div>
                   {cleaned && (
@@ -699,7 +690,18 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                <DataTable rows={(cleaned || uploaded)!.preview} />
+                <DataTable rows={sourcePreview} />
+                {cleaned && (
+                  <details className="cleaned-preview">
+                    <summary>Bereinigte Texte anzeigen</summary>
+                    <DataTable
+                      rows={cleaned.preview.map((row: Row) => ({
+                        ID: row.id,
+                        Text: row.text,
+                      }))}
+                    />
+                  </details>
+                )}
               </section>
             )}
             <div className="action-bar">
@@ -1382,10 +1384,9 @@ export default function App() {
         <footer>
           <span>
             <Layers3 size={13} />
-            Themenstudio
+            themncluster
           </span>
-          <span>Built for curiosity. Powered by BERTopic.</span>
-          <span>Deine Daten. Dein Überblick.</span>
+          <span>#NDRfragt Topic Modeling</span>
         </footer>
       </main>
       {settings && (
