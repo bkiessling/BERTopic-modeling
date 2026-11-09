@@ -1,6 +1,7 @@
 # Module to build table to display assinged topics on document level
 import pandas as pd
 
+
 # Function to build table containing ID, text column and assigned topic
 def build_document_table(
     ids: list[str],
@@ -8,7 +9,7 @@ def build_document_table(
     doc_topics: list[int],
     topic_info: pd.DataFrame,
     main_txt_col: str,
-    view_mode: str = "Textbeitrag"
+    view_mode: str = "Textbeitrag",
 ) -> pd.DataFrame:
     """
     Build a table of documents for display.
@@ -24,11 +25,7 @@ def build_document_table(
     Returns:
         DataFrame ready for display in the UI.
     """
-    df = pd.DataFrame({
-        "ID": ids,
-        "Textbeitrag": docs,
-        "Thema": doc_topics
-    })
+    df = pd.DataFrame({"ID": ids, "Textbeitrag": docs, "Thema": doc_topics})
 
     # Merge topic keywords if available
     if "Representation" in topic_info.columns:
@@ -51,16 +48,19 @@ def build_document_table(
     for i in range(1, tmp["seq"].max() + 1):
         part = (
             tmp[tmp["seq"] == i][["ID", "Thema", "Textbeitrag", "Keywords"]]
-            .rename(columns={
-                "Thema": f"Thema_{i}",
-                "Textbeitrag": f"{main_txt_col}_{i}",
-                "Keywords": f"Keywords_{i}"
-            })
+            .rename(
+                columns={
+                    "Thema": f"Thema_{i}",
+                    "Textbeitrag": f"{main_txt_col}_{i}",
+                    "Keywords": f"Keywords_{i}",
+                }
+            )
             .set_index("ID")
         )
         parts.append(part)
 
     return pd.concat(parts, axis=1).reset_index()
+
 
 # Function to compute unique ids and number of text documents
 def compute_document_stats(display_documents: pd.DataFrame) -> tuple[int, int]:

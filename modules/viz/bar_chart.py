@@ -1,4 +1,5 @@
 """Pure Plotly keyword charts shared by web and Streamlit clients."""
+
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 

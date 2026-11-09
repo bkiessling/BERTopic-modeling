@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 from modules.viz.projection import project_documents
-import streamlit as st
 
 
 def plot_topic_network(
@@ -42,10 +41,7 @@ def plot_topic_network(
     df["count"] = df["topic"].map(count_map)
 
     # Set color group for legend (e.g., "3_Klimawandel_Energie")
-    df["color_group"] = df.apply(
-        lambda row: "-1_outlier" if row.topic == -1 else row.label,
-        axis=1
-    )
+    df["color_group"] = df.apply(lambda row: "-1_outlier" if row.topic == -1 else row.label, axis=1)
 
     # Custom color for outlier
     color_map = {"-1_outlier": "lightgrey"}
@@ -53,7 +49,7 @@ def plot_topic_network(
     # Define legend order: outlier first, then by topic number
     legend_order = ["-1_outlier"] + sorted(
         [cg for cg in df["color_group"].unique() if cg != "-1_outlier"],
-        key=lambda x: int(x.split("_")[0])
+        key=lambda x: int(x.split("_")[0]),
     )
 
     # Scatter plot of all documents
@@ -79,7 +75,10 @@ def plot_topic_network(
 
     # Optionally hide topics not in top-n
     if top_n_legend is not None:
-        top_labels = [label_map[topic] for topic in tinfo[tinfo.Topic != -1].nlargest(top_n_legend, "Count").Topic]
+        top_labels = [
+            label_map[topic]
+            for topic in tinfo[tinfo.Topic != -1].nlargest(top_n_legend, "Count").Topic
+        ]
         fig.for_each_trace(
             lambda tr: tr.update(visible="legendonly")
             if tr.name not in top_labels and tr.name != "-1_outlier"
@@ -87,6 +86,3 @@ def plot_topic_network(
         )
 
     return fig
-
-
-project_documents = st.cache_data(show_spinner=False, max_entries=8)(project_documents)

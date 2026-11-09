@@ -18,7 +18,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `${process.env.BERTOPIC_PYTHON || "python"} -m tests_web.serve_e2e`,
+      command: `${process.env.BERTOPIC_PYTHON || "python"} -m tests.fixtures.server`,
       cwd: "..",
       url: "http://127.0.0.1:8000/api/health",
       timeout: 180000,

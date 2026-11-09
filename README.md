@@ -1,203 +1,136 @@
-# Topic Modeling mit BERTopic
+# BERTopic · #NDRfragt Topic Modeling
 
-> **Neue React-Oberfläche:** Im Branch `feature/react-workbench` steht eine separate Workbench mit Import · Modellierung · Ergebnissen, ohne Sidebar und mit FastAPI-Backend bereit. [Installation, Architekturentscheidung und Funktionsumfang](docs/react-workbench.md). Die folgende Streamlit-Anleitung bleibt weiterhin gültig.
+Lokale Themenanalyse mit **React/TypeScript**, **FastAPI** und **BERTopic**. Texte importieren, Modelle konfigurieren und Ergebnisse untersuchen – ohne Sidebar. Die aktuelle Anwendung liegt im Branch `feature/react-workbench`.
 
+![Modellierung mit Parameterkarten](docs/screenshots/react-modeling.png)
 
-Interaktive Streamlit-Anwendung für explorative Themenanalysen deutscher und englischer Texte. CSV- und Excel-Dateien werden hochgeladen, bereinigt, mit BERTopic modelliert und anschließend als Tabellen und Plotly-Diagramme untersucht.
+## Schnellstart auf deinem Mac
 
-## Installation
-
-Python 3.11 und 3.12 werden berücksichtigt. Unter Linux wurde die App mit Python 3.12 geprüft; für Intel-macOS mit Python 3.11 sind zusätzlich passende Binärpakete aufgelöst und der ältere numerische Paketstand unter Linux getestet. Native Mac-Tests laufen in der CI; die Cloud selbst führt kein macOS aus. Die App nutzt verfügbare CUDA- bzw. Apple-MPS-Beschleunigung, sonst CPU. Eine virtuelle Umgebung wird empfohlen:
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-# Für Linux ohne GPU zuerst die CPU-Variante installieren:
-python -m pip install 'torch==2.15.0' --index-url https://download.pytorch.org/whl/cpu
-python -m pip install -r requirements.txt
-python -m nltk.downloader stopwords
-```
-
-**Intel-Mac mit Conda / Python 3.11:** Eine separate Umgebung vermeidet Konflikte mit bereits installierten Paketen in `(base)`:
+Voraussetzungen: **Python 3.11 oder 3.12** und **Node.js 22 oder neuer**. Eine eigene Conda-Umgebung verhindert Konflikte mit `(base)`.
 
 ```bash
-conda create -n bertopic-dev python=3.11 pip
-conda activate bertopic-dev
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python -m nltk.downloader stopwords
-python -m streamlit run app.py
-```
-
-`requirements.txt` wählt auf Intel-macOS automatisch NumPy 1.26, Pandas 2.2, PyTorch 2.2.2 sowie passende SciPy-/Numba-/PyArrow-Versionen. Neuere PyTorch-Versionen stellen keine Intel-macOS-Wheels bereit; PyTorch 2.2 benötigt für zuverlässige NumPy-Integration NumPy 1.x. Auf anderen Plattformen mit Python 3.11 wird NumPy 2.4 statt des erst ab Python 3.12 verfügbaren NumPy 2.5 verwendet. Auf macOS **keinen** Linux-PyTorch-CPU-Index angeben und keine neuere PyTorch-Version manuell vorinstallieren.
-
-Die direkten Abhängigkeiten sind auf geprüfte Versionen festgelegt. `requirements.txt` ist kein vollständiges Lockfile für transitive Abhängigkeiten. Für eine GPU-Installation die passende PyTorch-Variante gemäß [PyTorch](https://pytorch.org/get-started/locally/) installieren.
-
-NLTK verwendet ein lokales Stopwort-Korpus. In der verwalteten Codex-Cloud kann dafür `NLTK_DATA=/workspace/.bertopic-setup/nltk_data` verwendet werden. Der dortige richtliniengesteuerte Proxy benötigt für den NLTK-Downloader zusätzlich `NLTK_ALLOW_PROXIED_URLOPEN=1`; TLS-Prüfung bleibt aktiv.
-
-## Start und Nutzung
-
-Im Repository-Verzeichnis:
-
-```bash
-streamlit run app.py
-```
-
-1. **Upload und Bereinigung:** UTF-8-CSV oder `.xlsx` hochladen, ID- und Textspalten wählen, bei Bedarf Stichprobe und zusätzliche zu entfernende Wörter angeben. Mehrere Textspalten werden untereinander angeordnet. Anschließend „Daten bereinigen“ klicken.
-2. **Modellierung:** Sprache, Embedding-Modell sowie UMAP-, HDBSCAN- und Vektorisierungsparameter wählen. „Modell trainieren“ lädt das Sprachmodell und startet das Training.
-3. **Analyse:** Themen und Dokumentzuordnungen prüfen, Ausreißer optional neu zuordnen oder zurücksetzen, Ähnlichkeitsmatrix, Keywords und Dokumentenkarte untersuchen.
-
-Die Bereinigung entfernt unter anderem URLs, Zahlen und Satzzeichen und wandelt Texte in Kleinbuchstaben um. Das kann fachlich wichtige Informationen entfernen; die Vorschau vor dem Training prüfen. Für belastbare Themenanalysen genügend vielfältige Texte verwenden; sehr kleine Datensätze liefern häufig keine stabilen Cluster.
-
-Neue bereinigte Daten verwerfen das bisherige Modell der Sitzung. Ein Browser-Neustart bzw. eine neue Streamlit-Sitzung kann Ergebnisse verlieren; Ergebnisse können als ZIP heruntergeladen werden. Ein Modellimport und das Speichern/Laden eines trainierten Modells sind derzeit nicht implementiert.
-
-### Netzwerk und Modelle
-
-Pakete kommen von PyPI und gegebenenfalls `download.pytorch.org`. NLTK lädt Stopwörter von `raw.githubusercontent.com`. Die Embedding-Modelle werden bei erster Verwendung von Hugging Face heruntergeladen und lokal zwischengespeichert. Öffentliche Modelle benötigen grundsätzlich keinen API-Key.
-
-In eingeschränkten Cloud-Netzen müssen `huggingface.co` und die tatsächlichen Download-/Redirect-Ziele zugelassen sein, gegebenenfalls `*.huggingface.co` sowie die verwendeten Xet-CDN-Hosts. In der aktuellen Cloud-Umgebung war Hugging Face beim Prüfen mit HTTP 403 blockiert. Die Tests nutzen deshalb lokale synthetische Embeddings; Modell-Downloads und die semantische Qualität der realen Embeddings wurden damit nicht geprüft.
-
-Die Auswahl beginnt bei der Sprache. Für Deutsch bietet das Dropdown sechs Modelle: mehrsprachiges MiniLM und MPNet, multilingual E5 small und base, BGE-M3 sowie Qwen3 Embedding 0.6B (experimentell). Unter dem Dropdown stehen Anzahl, Ressourcenhinweis und ein Link zur Modellkarte. Die Textlänge ändert das Sprachmodell nicht. Für Englisch stehen zusätzlich die englischen MiniLM-/MPNet-Varianten bereit. Pro Trainingslauf wird ein Modell verwendet.
-
-E5 erhält automatisch `query: `, Qwen eine Clustering-Instruktion. Kleinere Batches begrenzen den Speicherbedarf der größeren Modelle. Die App fordert Safetensors-Gewichte an (`use_safetensors=True`) und verwendet kein fremdes Modellskript (`trust_remote_code=False`).
-
-Eine Einordnung der deutschen MTEB-Ergebnisse und der Grenzen der Modellprüfung steht in [Embedding-Modelle für Deutsch](docs/embedding-models.md). Ein Gesamtmittel über verschiedene Aufgaben ist kein Beleg für das beste Topic-Clustering. Für deinen Intel-Mac sind MiniLM oder E5 small praktische Ausgangspunkte.
-
-## Ergebnisexport
-
-In der Analyse unter **Ergebnisse exportieren** das ZIP-Archiv herunterladen:
-
-- `documents.csv` / `documents.json`: IDs, bereinigte Texte und aktuelle Themenzuordnungen, einschließlich Ausreißeränderungen.
-- `topics.csv` / `topics.json`: Themenhäufigkeiten und Repräsentationen.
-- `manifest.json`: Trainingsparameter, Seed, Paketversionen, Zeitstempel, Textspalten, Bereinigungseinstellungen und angewendete Ausreißerschwellwerte.
-
-CSV-Dateien verwenden UTF-8 mit BOM. Der Export ist auch mit Pandas 1.5 kompatibel; ein Exportfehler unterbricht die Analyseansicht nicht mehr. Texte mit Formelpräfix werden für Tabellenkalkulationen mit einem Apostroph geschützt; JSON enthält die unveränderten Werte. Das Archiv enthält Texte aus dem Upload, aber weder die ursprüngliche Datei noch ausführbare Modellobjekte. Es dient der Ergebnisweitergabe, nicht dem Wiederaufnehmen des Trainings. Seed und Metadaten garantieren keine hardwareübergreifend identischen Ergebnisse.
-
-## Parameterprüfung und Trainingsschnittstelle
-
-Die Oberfläche meldet ungültige Parameter und deaktiviert das Training, bevor ein Sprachmodell geladen wird. Die Trainingsfunktion prüft dieselben Regeln unabhängig von Streamlit: mindestens vier nichtleere Texte, gültige UMAP-Dimensionen/Nachbarzahlen, Clustergröße, N-Gramme, Häufigkeitsgrenzen, Sprache und Themenrepräsentationen. Vier Texte sind eine technische Untergrenze, keine Empfehlung für belastbare Analysen.
-
-Die Vektorisierung prüft auf leeres Vokabular. BERTopic wendet `min_df`/`max_df` auf nach Themen zusammengefasste Texte an; nach dem Clustering kann daher zusätzlich eine verständliche Fehlermeldung notwendig sein. `max_df=1.0` vermeidet unbeabsichtigtes Entfernen aller Begriffe bei wenigen Themen.
-
-`TrainingConfig` und `TrainingResult` bilden die unabhängige Schnittstelle:
-
-```python
-from modules.modeling.configuration import TrainingConfig, MULTILINGUAL_MODEL
-from modules.modeling.train_model import train_bertopic_model
-
-config = TrainingConfig(MULTILINGUAL_MODEL, "Deutsch")
-# documents: Liste ausreichend vieler Texte; encoder: bereits geladenes Embedding-Modell
-result = train_bertopic_model(documents, config, encoder,
-                             on_progress=lambda percent, message: print(percent, message))
-# result.model, result.topic_info, result.embeddings, result.documents, result.config
-```
-
-Das Training importiert kein Streamlit und schreibt nicht in `session_state`. Die Oberfläche speichert Modell und Auswertungszustand in einem `AnalysisState`-Objekt unter einem Sitzungsschlüssel. Die Ausreißerfunktionen sind ebenfalls unabhängig von Streamlit. Widgets bleiben in `modules/ui/modeling_inputs.py`.
-
-## Aktualisieren und Importfehler
-
-Nach einem Branch-Wechsel oder Update den laufenden Streamlit-Prozess mit `Ctrl+C` beenden und neu starten:
-
-```bash
-git switch dev
+git fetch origin
+git switch feature/react-workbench
 git pull --ff-only
+conda activate bertopic-dev
 python -m pip install -r requirements.txt
-streamlit run app.py
+python -m nltk.downloader stopwords
+npm --prefix frontend ci
+npm --prefix frontend run build
+python -m backend
 ```
 
-Falls ein Traceback auf `/usr/local/anaconda3/lib/...` statt auf `.../envs/bertopic-dev/...` zeigt, läuft häufig noch die Conda-Basisumgebung. `conda activate bertopic-dev` ausführen und mit `python -m streamlit run app.py` starten, damit Streamlit denselben Python-Interpreter verwendet.
+Falls die Conda-Umgebung noch nicht existiert: `conda create -n bertopic-dev python=3.11 pip`, dann aktivieren. Falls der Branch nur remote existiert: `git switch --track origin/feature/react-workbench`.
 
-Ein `ImportError` für `restore_outliers` kann auf einen älteren Checkout oder ein noch geladenes altes Python-Modul hinweisen. Der aktuelle Stand enthält die Funktion; ein Neustart lädt die neue Version. Laufende Sitzungen mit alten Ergebnisobjekten müssen nach dieser Umstellung neu trainiert werden.
+Die App läuft auf deinem Rechner unter `http://127.0.0.1:8000`. Ein Python-Prozess liefert API und gebautes Frontend aus; Node ist im normalen Betrieb nicht nötig. `./scripts/start-web.sh` ist ein kurzer Alias für denselben Start. Nach Frontend-Änderungen erneut `npm --prefix frontend run build` ausführen. Den Server nach Python-/Konfigurationsänderungen neu starten. Bestehende Modelle im RAM gehen dabei verloren.
 
-## Diagramme interpretieren
-
-- **Themen-Ähnlichkeit:** Kosinus-Ähnlichkeit der Themen-Embeddings, kein statistischer z-Wert. Die häufigsten maximal 20 Themen werden angezeigt; Ausreißer (`-1`) bleiben ausgeschlossen.
-- **Top-Keywords:** Bis zu vier Themen auswählen. Die Gewichte hängen von der gewählten Themenrepräsentation ab und sind keine Wahrscheinlichkeiten.
-- **Dokumentenkarte:** Jeder Punkt steht für ein Dokument. UMAP projiziert Embeddings in zwei Dimensionen; Farben zeigen Topic-Zuordnungen. Abstände sind explorativ zu interpretieren. Es handelt sich nicht um einen Graphen mit Kanten. Seltene Themen sind gegebenenfalls zunächst nur in der Legende sichtbar. Kleine Datensätze verwenden eine einfache PCA-Projektion; identische Embeddings können überlappende Punkte erzeugen.
-
-Das Layout wird unabhängig von den Themenlabels zwischengespeichert. Alle Streamlit-Tabs werden bei einem Seitenlauf ausgeführt, auch wenn gerade nur einer sichtbar ist.
-
-## Tests
-
-Aus dem Repository-Verzeichnis:
+**Linux ohne GPU:** Vor der Installation der Requirements bei Bedarf die CPU-Variante vorinstallieren:
 
 ```bash
-HF_HUB_OFFLINE=1 NUMBA_NUM_THREADS=2 OMP_NUM_THREADS=2 \
-  python -m unittest discover -s tests -v
+python -m pip install 'torch==2.15.0' --index-url https://download.pytorch.org/whl/cpu
 ```
 
-Die Tests benötigen keine heruntergeladenen Sprachmodelle. Sie prüfen Plotly-Kompatibilität, ausschließlich Ausreißer, kleine Datensätze, echtes BERTopic-Training mit synthetischen Embeddings, das Rendern aller drei Diagramme über Streamlit `AppTest`, erneute Seitenausführung sowie konsistentes Zurücksetzen von Ausreißern. Hinzu kommen Parameterprüfung vor dem Encoding, sichtbare und wechselbare Optionen im Modell-Dropdown, Modell-Prompts, der deaktivierte Trainingsbutton bei ungültigen Eingaben und der ZIP-/CSV-/JSON-Export. Die englische Stopwortliste des Testtrainings ist in scikit-learn enthalten. Der erste Lauf kann wegen der Numba-Kompilierung länger dauern.
+Auf Intel-macOS wählt `requirements.txt` automatisch PyTorch 2.2.2, NumPy 1.26 und dazu passende Versionen von Pandas, SciPy und Numba. Keinen Linux-CPU-Index auf dem Mac verwenden. Python 3.11 und 3.12 werden berücksichtigt; native Mac-Tests sind in der CI eingerichtet, die Cloud führt selbst Linux aus.
 
-## Repository-Struktur
+## Arbeitsablauf
 
-```text
-app.py                      Streamlit-Einstieg und Weiterleitung
-pages/                      Upload, Modellierung und Analyse
-modules/
-  upload/                   Dateiformate und CSV-Trennzeichen
-  preprocessing/            Textauswahl, Bereinigung und Stopwörter
-  modeling/                 Unabhängige Konfiguration, Validierung und Training
-  analysis/                 Tabellen, Ausreißerbehandlung und Ergebnisexport
-  viz/                      Diagramme und gecachte Projektion
-  ui/                       Widgets, Erläuterungen und Analyse-Sitzungszustand
-assets/                     Logo
-.streamlit/config.toml      Darstellung und Streamlit-Einstellungen
-tests/                      Regressionstests und Streamlit-Integration
-requirements.txt            Getestete direkte Python-Abhängigkeiten
-```
+### 1. Import
 
-Die Trennung nach Arbeitsschritten ist für die aktuelle Größe sinnvoll. Trainings- und Analyselogik sind von der Streamlit-Sitzung getrennt; nur Seiten und UI-Adapter verwalten den Oberflächenzustand. `topic_modeling.py` ist ein älterer Einstieg; unterstützt wird `app.py`. `modules/viz/heatmap.py` enthält eine weitere, derzeit nicht eingebundene Wortgewichtungsansicht.
+CSV (UTF-8) oder Excel hochladen, Trennzeichen prüfen und zuerst eine ID-Spalte wählen oder IDs generieren lassen. Danach die Textspalte(n) im durchsuchbaren Multiselect auswählen. Es gibt keine automatische Vorauswahl. Mehrere Textspalten werden für das Training untereinander angeordnet.
 
-## Eignung und nächste Schritte
+Die Originalvorschau zeigt zuerst die ID-Spalte und danach nur ausgewählte Textspalten. Bei „ID generieren“ bleibt die ID-Spalte dort zunächst leer. Nach „Daten bereinigen“ ersetzt die Vorschau die Originalwerte direkt durch die tatsächlich verwendeten bereinigten Texte einschließlich ihrer IDs.
 
-Streamlit eignet sich für explorative Analysen, interne Fachanwendungen und einen kleinen Nutzerkreis. Eine Migration ist dafür nicht nötig. Für lange, parallele Trainingsjobs und einen öffentlich betriebenen Mehrbenutzerdienst fehlen derzeit Hintergrundjobs, persistente Ergebnisse, Fortschritts-/Fehlerverwaltung außerhalb der Browser-Sitzung und ein Betriebskonzept für Authentifizierung und Ressourcenlimits.
+Stichprobe und zusätzliche, durch Komma getrennte Stopwörter sind optional. Die Bereinigung entfernt URLs, Erwähnungen, Zahlen und Satzzeichen, wandelt in Kleinbuchstaben um und entfernt leere Texte. Dabei können fachlich wichtige Informationen verloren gehen; Vorschau prüfen.
 
-Prioritäten für die weitere Entwicklung:
+### 2. Modellierung
 
-- Die sprachlich passende Modellauswahl an eigenen Beispieldaten evaluieren und Modellrevisionen festlegen.
-- Qualitätsmaße für Themen ergänzen; technische Parameterprüfung ersetzt keine fachliche Evaluation.
-- Fehlgeschlagene Uploads mit verständlichen Meldungen behandeln, Zeichencodierung und Datenqualität prüfen.
-- Wiederladbaren Modellexport und ein vollständiges Lockfile ergänzen; ungenutzte Einstiege und Module konsolidieren.
-- Bei großen Datenmengen Projektionen begrenzen bzw. gezielt berechnen und Training in einen Hintergrundprozess auslagern.
+Oben stehen drei Kacheln: **Voreinstellungen**, die breitere **Sprache & Embeddings**-Auswahl und **Themen automatisch benennen**. Darunter liegen UMAP, HDBSCAN/Themenbeschreibung und Vektorisierung. Kleine Info-Buttons erklären Parameter bei Bedarf.
 
-## Optionale Themennamen mit OpenAI
+Die Web-API behandelt `min_df` und `max_df` ausdrücklich als **Anteile zwischen 0 und 1**. Insbesondere wird JSON `max_df: 1` als `1.0` / 100 % interpretiert, nicht als absolute Häufigkeit 1. BERTopic wendet die Filter auf zusammengefasste Themen-Texte an. Ein zu hoher Mindestwert oder fehlendes Vokabular kann nach dem Clustering weiterhin eine sinnvolle Fehlermeldung auslösen.
 
-Die App kann nach dem lokalen BERTopic-Training kurze Themennamen über die OpenAI-API erzeugen. **ChatGPT Pro beinhaltet keine API-Nutzung.** API-Key und Guthaben werden separat unter [OpenAI Platform](https://platform.openai.com/) verwaltet; Schlüssel lassen sich unter [API keys](https://platform.openai.com/api-keys) erstellen.
+Das lokale Training läuft als Hintergrundjob mit Fortschritt. Ungültige Parameter werden vor dem Laden des Sprachmodells geprüft. Ein fehlgeschlagenes Folgetraining verwirft vorherige Ergebnisse nicht. Änderungen an Formularwerten verändern kein bereits trainiertes Modell.
 
-### API-Key auf deinem Mac hinterlegen
+### 3. Ergebnisse
 
-Im Projektverzeichnis die Datei `.streamlit/secrets.toml` mit deinem Editor anlegen:
+- Themen, Keywords und optional generierte Themennamen.
+- Suchbare Dokumenttabelle mit Pagination und Gruppierung nach ID.
+- Tatsächlich verwendete Trainingsparameter.
+- Kosinus-Ähnlichkeitsmatrix der häufigsten Themen, Keyword-Balken für bis zu vier Themen und Dokumentenkarte mit UMAP oder t-SNE.
+- Ausreißer reduzieren und ursprüngliche Zuordnungen wiederherstellen.
+- ZIP-Export mit Dokumenten-/Thementabellen als CSV und JSON sowie Parametern und Paketversionen.
+
+Kosinus-Ähnlichkeit ist kein statistischer z-Wert. Keyword-Gewichte sind keine Wahrscheinlichkeiten. Eine zweidimensionale Dokumentenkarte ist explorativ zu interpretieren. Ein Seed garantiert keine hardwareübergreifend bitgleichen Ergebnisse.
+
+## OpenAI: optionale Themennamen
+
+Der Dialog über die Verbindungsschaltfläche oben rechts enthält Modell-Dropdown und **API-Zugriff prüfen**. Die Benennung ist standardmäßig aus und ohne Key deaktiviert. Sie lässt sich beim Training oder nachträglich mit Keyword-Vorschau auslösen. **ChatGPT Pro beinhaltet keine API-Nutzung**; API-Key und Abrechnung werden separat auf der [OpenAI Platform](https://platform.openai.com/api-keys) verwaltet.
+
+Neue lokale Schlüssel in **`config/secrets.toml`** speichern:
 
 ```toml
-OPENAI_API_KEY = "DEIN_NEUER_OPENAI_API_KEY"
+OPENAI_API_KEY = "DEIN_VOLLSTÄNDIGER_OPENAI_API_KEY"
 ```
 
-Die Datei ist in `.gitignore` ausgeschlossen und darf nicht committed werden. Alternativ liest die App `OPENAI_API_KEY` oder `BERTOPIC_OPENAI_API_KEY` aus der Prozessumgebung. Streamlit-Secrets haben Vorrang vor Umgebungsvariablen, damit ein alter Shell-Key die lokale Konfiguration nicht überlagert. Innerhalb einer Quelle hat `BERTOPIC_OPENAI_API_KEY` Vorrang vor `OPENAI_API_KEY`. Die Oberfläche zeigt nur den Quellennamen, niemals den Schlüssel. Keine Schlüssel in Python-Dateien, Screenshots, Chat-Nachrichten oder Git speichern. Einen bereits geteilten Schlüssel widerrufen und ersetzen.
+`config/secrets.example.toml` ist eine Vorlage ohne Schlüssel. Die echte Datei ist von Git ausgeschlossen. Alternativ sind `BERTOPIC_OPENAI_API_KEY` oder `OPENAI_API_KEY` als Umgebungsvariable möglich. Projektdatei hat Vorrang vor globaler Konfiguration in `~/.config/bertopic-workbench/secrets.toml`, danach folgen Umgebungsvariablen. Der Browser erhält nur Anwesenheit und Quellenname, **niemals den Schlüssel**. Keine API-Keys in React oder `VITE_*`-Variablen eintragen.
 
-Streamlit danach vollständig neu starten, im aktivierten Conda-Environment:
+**Umstieg von der alten App:** `python -m backend` übernimmt eine vorhandene `.streamlit/secrets.toml` einmalig nach `config/secrets.toml` mit Dateirechten `0600`. Eine vorhandene neue Konfiguration wird niemals überschrieben; die alte Datei bleibt unverändert. Die Migrationshilfe benötigt kein Streamlit. Es gibt keine alte Streamlit-Anwendung oder entsprechende Laufzeitabhängigkeit mehr.
+
+Die Benennung sendet nur Themen-IDs, bis zu zehn Keywords je Thema, Sprache und Benennungsanweisungen an OpenAI. Originaldateien, Dokumenttexte, Dokument-IDs und Embeddings bleiben lokal. **Keywords können trotzdem Namen oder vertrauliche Begriffe enthalten.** `store=false` ist gesetzt; es gelten weiterhin die [API-Datenregeln](https://platform.openai.com/docs/guides/your-data).
+
+API-Kontrolle fragt nur Modell-Metadaten ab und generiert keine Antwort. Erfolg bestätigt nicht Guthaben oder Responses-Berechtigung. HTTP 401 bedeutet, dass der gefundene Wert abgelehnt wurde: echte aktive OpenAI-Platform-Keys statt Platzhaltern verwenden und angezeigte Quelle prüfen. API-Fehler erhalten das lokale Modell. Ein normaler UI-Rerender verursacht keine neue Benennung. Explizite erneute Benennung kann Kosten verursachen, auch wenn ein späteres Paket fehlschlägt. Nach Ausreißeränderungen werden alte KI-Namen verworfen.
+
+## Struktur
+
+```text
+frontend/
+  src/App.tsx              Schlanke Anwendungshülle und Navigation
+  src/features/            Import, Modellierung, Ergebnisse, Verbindung
+  src/state/               Gemeinsamer Workflow-Zustand
+  src/components.tsx       Controls, Multiselect, Hilfen, Tabellen, Diagramme
+  src/api.ts               HTTP-Client und Typen
+  src/style.css            Design und responsive Darstellung
+  e2e/                     Browser-Tests
+backend/
+  __main__.py              Lokaler Start, sichere Konfigurationsmigration
+  app.py                   App-Zusammenbau und statisches Hosting
+  routes/                  Endpunkte für System, Import, Training und Ergebnisse
+  schemas.py               Validierte Request-Schemas
+  runtime.py               Sitzungen, Job-Queue, Encoder-Cache
+  settings.py              Serverkonfiguration und Zugangsdaten
+  migrate.py               Einmalige, nicht überschreibende Migration
+modules/
+  modeling/                Unabhängige Konfiguration, Encoder und Training
+  preprocessing/           Textauswahl und Bereinigung
+  upload/                  CSV-Trennzeichenerkennung
+  analysis/                Ergebniszustand, Tabellen, Export, OpenAI-Benennung
+  viz/                     Frameworkfreie Plotly-Diagramme und Projektion
+config/                    Vorlage und ignorierte lokale Secrets
+scripts/                   Starthelfer
+tests/unit/                Fachlogik und Datenfluss
+tests/api/                 HTTP-Integration einschließlich echtem Testtraining
+tests/fixtures/            Ausschließlich für Tests: Offline-Encoder-Server
+```
+
+React bleibt für Darstellung und Bedienung zuständig. Modellierung und Analyse sind unabhängig vom Frontend. FastAPI übersetzt HTTP-Anfragen in Fachoperationen; die Jobverwaltung ist davon getrennt. Plotly wird erst bei Bedarf geladen. Die ursprünglichen fachlichen Module wurden weiterverwendet, ungenutzte Einstiege, Widgets und alte Tests entfernt.
+
+## Entwicklung und Tests
+
+Backend: `python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000`. Frontend in einem zweiten Terminal: `npm --prefix frontend run dev`. Vite läuft auf Port 5173 und leitet `/api` zum Backend weiter.
 
 ```bash
-conda activate bertopic-dev
-python -m streamlit run app.py
+HF_HUB_OFFLINE=1 NUMBA_NUM_THREADS=2 OMP_NUM_THREADS=2 python -m unittest discover -s tests -v
+npm --prefix frontend run build
+cd frontend
+npx playwright install chromium
+npm run test:e2e
 ```
 
-In **Modellierung** steht **OpenAI-Verbindung** ganz oben in der Seitenleiste, vor den Modellparametern. Der Key-Status ist direkt sichtbar; Das Modell-Dropdown und **API-Zugriff prüfen** sind direkt sichtbar; Hinweise stehen unter **Einrichtung und Datenübertragung**. Dort die standardmäßig ausgeschaltete Checkbox **Themen mit OpenAI benennen (nur Keywords)** aktivieren. Ohne gefundenen Key ist sie ausgegraut. Das Dropdown bietet `gpt-4.1-mini` (Standard), `gpt-4.1-nano`, `gpt-4.1`, `gpt-5-mini` und `gpt-5-nano`. Ob das jeweilige Modell für dein Projekt verfügbar ist, hängt vom API-Zugriff ab. Key-Anwesenheit ist keine Prüfung seiner Gültigkeit oder des Guthabens. **API-Zugriff prüfen** fragt ausschließlich die Modell-Metadaten ab, ohne Keywords zu übertragen oder eine Antwort zu generieren. Erfolg bestätigt Authentifizierung und Modellsichtbarkeit, nicht Guthaben oder die Responses-Berechtigung. Bei eingeschränkten Schlüsseln kann die Modellabfrage gesperrt sein, obwohl Benennung erlaubt ist. HTTP 401 bedeutet, dass der gelesene Schlüssel abgelehnt wurde: aktive OpenAI-Platform-Zugangsdaten statt Platzhalter wie `"key"` verwenden, Key-Quelle prüfen und nach Änderungen Streamlit neu starten. Solche Fehler werden auch beim tatsächlichen Benennen verständlich angezeigt, ohne das erfolgreiche BERTopic-Training zu verwerfen.
+Die Browser-Tests starten selbst `tests.fixtures.server` mit lokal erzeugten Test-Embeddings. Der reguläre Server verwendet echte Sprachmodelle. Tests prüfen Datenfluss, JSON-Zahlensemantik, Konfigurationsmigration, API-Fehler, Diagramme, Suche, Download, Reload sowie Desktop/Mobil. Sie benötigen weder vortrainierte Modell-Downloads noch API-Guthaben. Modellqualität und echte API-Zugriffe sind damit nicht belegt.
 
-In **Analyse** ist die Benennung auch nachträglich möglich. Die Vorschau zeigt die Themen-IDs und Keywords, bevor **Keywords an OpenAI senden und Themen benennen** angeklickt wird. Ein gewöhnlicher UI-Rerun löst keinen neuen API-Aufruf aus. Ein erneuter Klick bzw. ein neues Training mit aktivierter Option kann erneut Kosten verursachen. Es gibt keine automatischen Wiederholungen fehlgeschlagener API-Aufrufe. Aufträge werden in Pakete mit maximal 20 Themen aufgeteilt; bei einem späteren Fehler können bereits Kosten entstanden sein, auch wenn keine neuen Namen übernommen werden.
+## Betrieb und Grenzen
 
-### Welche Daten werden übertragen?
+Die App ist für lokalen Betrieb mit **einem Python-Worker** ausgelegt. Jobs laufen nacheinander. Sitzungen und Modelle liegen im RAM; ein Seiten-Reload findet sie wieder, ein Serverneustart nicht. Maximal 20 ruhende Arbeitsbereiche und 25 MB je Upload begrenzen den lokalen Datenumfang. Nach zwei Stunden ruhende Sitzungen werden bei der nächsten Neuanlage entfernt. Große Modelle benötigen dennoch viel RAM.
 
-An `https://api.openai.com/v1/responses` gehen ausschließlich:
+Abbrechen/Wiederaufnehmen laufender Jobs, dauerhaft gespeicherte Modelle, Login und verteilte Worker sind nicht implementiert. Für einen öffentlichen Mehrbenutzerdienst wäre ein gesondertes Betriebskonzept erforderlich. Deshalb ist der Standardstart auf `127.0.0.1` gebunden.
 
-- bis zu zehn Keywords je Thema (jeweils maximal 80 Zeichen),
-- die interne Themen-ID und die gewünschte Sprache,
-- die Anweisung zur Benennung und das gewünschte Antwortschema.
-
-Nicht übertragen werden Originaldatei, Original-/bereinigte Dokumenttexte, repräsentative Dokumentauszüge, Dokument-IDs, Dateinamen oder Embeddings. Ausreißer (`-1`) werden nicht benannt. **Keywords sind trotzdem aus den Daten abgeleitet und können Namen oder vertrauliche Begriffe enthalten.** Die Benennung ist daher kein vollständig lokaler Arbeitsschritt und keine automatische Anonymisierung.
-
-Die API-Anfrage verwendet `store=false`. Das ist keine Zusage einer vollständigen Nullspeicherung: [Die Datenverwendungs- und Aufbewahrungsregeln der API](https://platform.openai.com/docs/guides/your-data) gelten weiterhin. Das lokale Programm übermittelt keinen Trainingsdatensatz zur Feinabstimmung, sondern einen Benennungsauftrag an ein bestehendes Modell.
-
-Die Namen verändern weder Cluster noch Keywords. Sie erscheinen in der Themenübersicht, Diagrammbeschriftungen und CSV-/JSON-Exporten. Das Manifest dokumentiert Anbieter, Modell und den Keyword-Modus, niemals den API-Key. Nach Ausreißeränderungen werden Namen verworfen, damit alte Beschriftungen nicht versehentlich als aktuell gelten. Neue Namen lassen sich danach ausdrücklich erzeugen. Generierte Namen fachlich prüfen.
-
-Die Anbindung nutzt den vorhandenen HTTP-Client `requests`, keinen zusätzlichen OpenAI-SDK. Die Tests simulieren API-Antworten und prüfen unter anderem den Datenumfang, deaktivierte Controls, Antwortvalidierung, Fehlersituationen, Benennung in den Diagrammen und das Vermeiden wiederholter Aufrufe. Ein bezahlter Live-Aufruf ist für die Tests weder nötig noch enthalten. In Cloud-Netzen muss `api.openai.com` für HTTPS erreichbar sein; Key-Werte gehören in die sicheren Umgebungs-/Secret-Einstellungen.
+Details zur Modellauswahl: [Embedding-Modelle für Deutsch](docs/embedding-models.md). In eingeschränkten Netzen müssen Modell-Downloads von Hugging Face und optional `api.openai.com` erreichbar sein. MiniLM oder E5 small sind praktische Ausgangspunkte auf einem Intel-Mac; ein Leaderboard-Gesamtwert ersetzt keine Bewertung der eigenen Themen.

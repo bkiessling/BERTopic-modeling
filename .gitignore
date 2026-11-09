@@ -21,3 +21,8 @@ frontend/dist/
 frontend/test-results/
 frontend/playwright-report/
 *.tsbuildinfo
+
+config/secrets.toml
+
+*.egg-info/
+.ruff_cache/

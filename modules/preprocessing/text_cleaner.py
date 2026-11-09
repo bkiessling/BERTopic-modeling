@@ -2,14 +2,16 @@
 import pandas as pd
 import re
 
+
 def clean_text(text: str) -> str:
     text = str(text).lower()
-    text = re.sub(r"@\w+", "", text)           # Remove @usernames
-    text = re.sub(r"http\S+|www\S+", "", text) # Remove URLs
-    text = re.sub(r"\d+", "", text)            # Remove digits
-    text = re.sub(r"[^\w\säöüß]", "", text)     # Remove punctuation (keep umlauts)
-    text = re.sub(r"\s+", " ", text)           # Collapse multiple spaces
+    text = re.sub(r"@\w+", "", text)  # Remove @usernames
+    text = re.sub(r"http\S+|www\S+", "", text)  # Remove URLs
+    text = re.sub(r"\d+", "", text)  # Remove digits
+    text = re.sub(r"[^\w\säöüß]", "", text)  # Remove punctuation (keep umlauts)
+    text = re.sub(r"\s+", " ", text)  # Collapse multiple spaces
     return text.strip()
+
 
 def clean_text_column(df: pd.DataFrame, text_column: str) -> pd.DataFrame:
     """
@@ -19,6 +21,7 @@ def clean_text_column(df: pd.DataFrame, text_column: str) -> pd.DataFrame:
     df[text_column] = df[text_column].fillna("").astype(str)
     df[text_column] = df[text_column].apply(clean_text)
     return df
+
 
 def filter_text_column(df: pd.DataFrame, text_column: str) -> pd.DataFrame:
     """

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bertopic-workbench"
+version = "0.2.0"
+description = "Local topic modeling with a React workbench and Python backend"
+requires-python = ">=3.11,<3.13"
+dynamic = ["dependencies"]
+
+[project.scripts]
+bertopic-workbench = "backend.__main__:main"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+include = ["backend*", "modules*"]
+namespaces = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100

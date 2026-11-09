@@ -1,4 +1,5 @@
 """Framework-independent document projection."""
+
 import numpy as np
 from umap import UMAP
 from sklearn.manifold import TSNE
@@ -16,9 +17,20 @@ def project_documents(embeddings, method="umap"):
         result = PCA(n_components=min(2, n_samples, n_features)).fit_transform(embeddings)
         return np.pad(result, ((0, 0), (0, 2 - result.shape[1])))
     if method == "umap":
-        reducer = UMAP(n_neighbors=min(10, n_samples - 1), n_components=2,
-                       min_dist=0.0, metric="cosine", random_state=42, n_jobs=1)
+        reducer = UMAP(
+            n_neighbors=min(10, n_samples - 1),
+            n_components=2,
+            min_dist=0.0,
+            metric="cosine",
+            random_state=42,
+            n_jobs=1,
+        )
     else:
-        reducer = TSNE(n_components=2, perplexity=min(30, n_samples - 1),
-                       metric="cosine", random_state=42, init="random")
+        reducer = TSNE(
+            n_components=2,
+            perplexity=min(30, n_samples - 1),
+            metric="cosine",
+            random_state=42,
+            init="random",
+        )
     return reducer.fit_transform(embeddings)

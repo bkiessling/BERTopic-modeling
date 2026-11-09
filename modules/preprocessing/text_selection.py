@@ -1,6 +1,7 @@
 # Module to build a df containing a ID column and at least one text column
 import pandas as pd
 
+
 def build_text_df(df: pd.DataFrame, text_cols: list, id_col: str) -> pd.DataFrame:
     """
     Returns a DataFrame with columns: ['id', 'text'].

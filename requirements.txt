@@ -1,6 +1,5 @@
 # Python 3.11/3.12. Intel macOS needs the last supported PyTorch stack.
 # Keep NumPy 1.x with PyTorch 2.2 to avoid its NumPy ABI incompatibility.
-streamlit==1.67.0
 pandas==2.2.3 ; sys_platform == "darwin" and platform_machine == "x86_64"
 pandas==3.1.1 ; (sys_platform != "darwin" or platform_machine != "x86_64")
 numpy==1.26.4 ; sys_platform == "darwin" and platform_machine == "x86_64"
@@ -21,8 +20,12 @@ torch==2.15.0 ; (sys_platform != "darwin" or platform_machine != "x86_64")
 scipy==1.13.1 ; sys_platform == "darwin" and platform_machine == "x86_64"
 numba==0.61.2 ; sys_platform == "darwin" and platform_machine == "x86_64"
 
-# Arrow 26 requires NumPy 2 at runtime; retain NumPy 1 support on Intel Macs.
-pyarrow==17.0.0 ; sys_platform == "darwin" and platform_machine == "x86_64"
 
 # HTTP client for optional OpenAI topic naming (no SDK required).
 requests==2.34.2
+
+# HTTP application
+fastapi==0.162.2
+uvicorn==0.54.0
+python-multipart==0.0.33
+httpx==0.28.1
