@@ -184,7 +184,7 @@ test("real API: import, clean, train, all charts, search, download, restore", as
     .getByRole("button", { name: "Daten bereinigen", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Bereit für die Analyse" }),
+    page.getByRole("heading", { name: "Daten für die Modellierung" }),
   ).toBeVisible();
   await expect(preview.locator("th")).toHaveText(["ID", "text"]);
   await expect(
@@ -204,6 +204,11 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   await expect(
     page.getByRole("heading", { name: "Modellierung" }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Hilfe zu Voreinstellungen", exact: true })
+    .click();
+  await expect(page.getByRole("note")).toContainText("Heuristiken");
+  await page.getByRole("button", { name: "Hilfe schließen" }).click();
   await page
     .getByRole("button", { name: "Hilfe zu Nachbarn", exact: true })
     .click();
@@ -322,13 +327,15 @@ test("real API: import, clean, train, all charts, search, download, restore", as
     page.locator('.documents-card th[aria-sort="ascending"]'),
   ).toContainText("Textbeitrag");
   await filter.selectOption("");
-  await page.getByLabel("Nur repräsentative Beiträge", { exact: true }).check();
   await expect(
-    page.locator(".documents-card tbody tr").first().locator("td").last(),
-  ).toHaveText("Ja");
-  await page
-    .getByLabel("Nur repräsentative Beiträge", { exact: true })
-    .uncheck();
+    page.getByLabel("Nur repräsentative Beiträge", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByLabel("Nach ID gruppieren", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".documents-card th").first()).toContainText(
+    "Themenname",
+  );
   await page.getByLabel("Textbeiträge durchsuchen").fill("computer");
   await expect(page.getByText(/20 Einträge/)).toBeVisible();
   const downloadPromise = page.waitForEvent("download");
@@ -338,5 +345,23 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   );
   await page.reload();
   await expect(page.getByRole("heading", { name: "Ergebnisse" })).toBeVisible();
+  await page.getByText("Ergebnisse verbessern", { exact: true }).click();
+  await page.getByLabel("Zielanzahl Themen", { exact: true }).fill("1");
+  await page
+    .getByRole("button", { name: "Themen zusammenfassen", exact: true })
+    .click();
+  await expect(page.locator(".stat-card").first().locator("strong")).toHaveText(
+    "1",
+    { timeout: 30000 },
+  );
+  await page
+    .getByRole("button", { name: "Themen neu benennen", exact: true })
+    .click();
+  await expect(
+    page.getByText("Themennamen von OpenAI · gpt-4.1-mini"),
+  ).toBeVisible({ timeout: 30000 });
+  await expect(
+    page.locator(".documents-card tbody tr").first().locator("td").first(),
+  ).toContainText("Test-Themenname");
   expect(errors).toEqual([]);
 });

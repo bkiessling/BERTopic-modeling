@@ -11,24 +11,24 @@ def build_topic_table(
     tbl = tbl.rename(
         columns={
             "Topic": "Thema",
-            "Name": "Bezeichnung",
+            "Name": "Themenname",
             "Count": "Dokumente (n)",
             "Percentage": "Anteil (%)",
             "Representation": "Keywords",
         }
     )
     if "CustomName" in tbl.columns:
-        tbl["Bezeichnung"] = tbl["CustomName"]
+        tbl["Themenname"] = tbl["CustomName"]
     if "Keywords" in tbl.columns:
         tbl["Keywords"] = tbl["Keywords"].apply(
-            lambda x: ", ".join(x[:top_n_words]) if isinstance(x, list) else x
+            lambda x: ", ".join(word for word in x[:top_n_words] if word)
+            if isinstance(x, list)
+            else x
         )
     for col in ["KeyBERT", "MMR"]:
         if col not in tbl.columns:
             tbl[col] = ""
-    return tbl[
-        ["Thema", "Bezeichnung", "Dokumente (n)", "Anteil (%)", "Keywords", "KeyBERT", "MMR"]
-    ]
+    return tbl[["Themenname", "Thema", "Dokumente (n)", "Anteil (%)", "Keywords", "KeyBERT", "MMR"]]
 
 
 def compute_topic_stats(topic_info: pd.DataFrame, docs: list[str]) -> tuple[int, float, int]:

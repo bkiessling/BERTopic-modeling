@@ -53,10 +53,10 @@ Das lokale Training läuft als Hintergrundjob mit Fortschritt. Ungültige Parame
 ### 3. Ergebnisse
 
 - Themen, Keywords und optional generierte Themennamen.
-- Dauerhaft sichtbare Texttabelle unter beiden Ergebnisansichten: Suche, Themenfilter, repräsentative Beiträge, Sortierung per Spaltenüberschrift, Pagination und Gruppierung nach ID.
+- Dauerhaft sichtbare Texttabelle unter beiden Ergebnisansichten: Suche, Themenfilter, Sortierung per Spaltenüberschrift und Pagination.
 - Tatsächlich verwendete Trainingsparameter.
 - Netzwerk/Dokumentenprojektion mit UMAP oder t-SNE als erste Visualisierung, Kosinus-Ähnlichkeitsmatrix und blaue Keyword-Balken mit Themen-Multiselect und einstellbarer Keyword-Anzahl.
-- Outlier reduzieren und ursprüngliche Zuordnungen wiederherstellen.
+- Outlier reduzieren und ursprüngliche Zuordnungen wiederherstellen. Ähnliche Themen nachträglich auf eine Zielanzahl zusammenfassen; dabei bleiben Outlier separat und die bisherige Outlier-Zurücksetzung entfällt.
 - ZIP-Export mit Dokumenten-/Thementabellen als CSV und JSON sowie Parametern und Paketversionen.
 
 Kosinus-Ähnlichkeit ist kein statistischer z-Wert. Keyword-Gewichte sind keine Wahrscheinlichkeiten. Eine zweidimensionale Dokumentenkarte ist explorativ zu interpretieren. Ein Seed garantiert keine hardwareübergreifend bitgleichen Ergebnisse.
@@ -112,6 +112,7 @@ src/
   components/          # Wiederverwendbare Formulare, Dialoge, Fortschritt
   charts/              # Plotly-Anbindung
   context/             # Zustand und API-Arbeitsabläufe
+  content/help.de.json # Zentral konfigurierbare Hilfetexte
 server/
   app.py               # FastAPI und Auslieferung des Frontends
   routes/              # HTTP-Endpunkte
@@ -127,3 +128,13 @@ Nach Installation mit `npm ci` startet **`npm run dev`** API und Vite gemeinsam.
 Für normalen lokalen Betrieb: `npm run build`, dann `npm start`. Ist Port 8000 belegt, den bisherigen Server mit Ctrl+C beenden oder `npm start -- --port 8001` verwenden. Für die Entwicklung alternativ `BACKEND_PORT=8001 npm run dev`. Der Start überschreibt keinen laufenden Server.
 
 Prüfen: `python -m unittest discover -s tests -v`, `npm run build`, `npm run test:e2e`. Browsertests verwenden ein lokales Test-Embeddingmodell ohne externe API-Anfragen.
+
+## Hilfetexte und Themennamen
+
+Alle Texte der Hilfe-Buttons stehen in `src/content/help.de.json`. JSON wird direkt von Vite/TypeScript eingebunden, ohne zusätzliche YAML-Abhängigkeit. Zum Ändern die jeweilige Zeichenkette bearbeiten; in `npm run dev` aktualisiert sie sich direkt, für den normalen Betrieb danach `npm run build` ausführen. Änderungen an den Heuristiken in `server/services/modeling/configuration.py` müssen auch in der Voreinstellungs-Hilfe erklärt werden.
+
+„Voreinstellungen“ verwendet feste, von Textanzahl und durchschnittlicher Länge abhängige Heuristiken und optimiert kein Modell automatisch. Zurücksetzen ändert nur die Formularwerte, nicht bestehende Ergebnisse.
+
+Die erste Spalte beider Ergebnistabellen heißt **Themenname**. OpenAI-Namen erscheinen auch in Filtern, Diagrammen und Exporten. Ohne KI werden bis zu vier Keywords als lesbarer Name verwendet; Thema −1 heißt Outlier. Für OpenAI werden weiterhin maximal zehn Keywords pro Thema übertragen. Der Prompt wünscht präzise Titel mit normalerweise drei bis sechs Wörtern, bei Bedarf bis zu acht.
+
+Unter „Ergebnisse verbessern“ lassen sich ähnliche Themen mit BERTopics agglomerativem Clustering der Themen-Embeddings auf eine gewünschte Anzahl reduzieren. Die Zahl schließt Outlier aus. Das trainierte Embedding-Modell wird dabei nicht neu trainiert. Die Operation arbeitet auf einer Kopie der veränderlichen Modellbestandteile; bei Fehlern bleiben bisherige Ergebnisse erhalten. Eine erfolgreich geänderte Themenstruktur verwirft alte Themennamen und die Outlier-Zurücksetzung für die vorherigen Themen-IDs. Die Reduktionshistorie wird im Export dokumentiert. „Themen neu benennen“ vergibt anschließend Namen für die aktualisierten Inhalte.

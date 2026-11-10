@@ -1,3 +1,4 @@
+import helpText from "../content/help.de.json";
 import { useWorkbench } from "../context/WorkbenchContext";
 import type { Row } from "../api";
 import { defaults } from "../api";
@@ -55,20 +56,17 @@ export function ModelingPage() {
           <section className="card preset-card">
             <div className="preset-heading">
               <h3>Voreinstellungen</h3>
-              <button
-                className="icon-button reset-control"
-                aria-label="Parameter zurücksetzen"
-                title="Voreinstellungen wiederherstellen"
-                onClick={() =>
-                  setParams(defaults(cleaned.defaults, namingModel))
-                }
-              >
-                <RotateCcw size={18} />
-              </button>
+              <Help title="Voreinstellungen">{helpText.presets}</Help>
             </div>
             <p>
               Ausgangswerte für {cleaned.rows.toLocaleString("de-DE")} Texte.
             </p>
+            <button
+              className="button secondary preset-reset"
+              onClick={() => setParams(defaults(cleaned.defaults, namingModel))}
+            >
+              Parameter zurücksetzen
+            </button>
             <div className="preset-training">
               <h3>Training</h3>
               <p>Mit den gewählten Parametern starten.</p>
@@ -89,10 +87,7 @@ export function ModelingPage() {
             <div className="card-title">
               <Layers3 size={18} />
               <h3>Sprache & Embeddings</h3>
-              <Help title="Embeddings">
-                Das Sprachmodell übersetzt Texte in Bedeutungsvektoren. Deutsche
-                Texte brauchen ein deutschfähiges Modell.
-              </Help>
+              <Help title="Embeddings">{helpText.embeddings}</Help>
             </div>
             <div className="model-select-grid">
               <Field label="Sprache">
@@ -191,7 +186,7 @@ export function ModelingPage() {
               onChange={(n_neighbors) =>
                 change({ umap: { ...params.umap, n_neighbors } })
               }
-              help="Kleine Werte betonen lokale Gruppen, größere Werte die globale Struktur. Muss unter der Textanzahl liegen."
+              help={helpText.neighbors}
             />
             <Range
               label="Dimensionen"
@@ -201,7 +196,7 @@ export function ModelingPage() {
               onChange={(n_components) =>
                 change({ umap: { ...params.umap, n_components } })
               }
-              help="Dimensionen für das Clustering, typischerweise 2 bis 5. Nicht die Achsen des Ergebnisdiagramms."
+              help={helpText.dimensions}
             />
             <Range
               label="Minimale Distanz"
@@ -212,7 +207,7 @@ export function ModelingPage() {
               onChange={(min_dist) =>
                 change({ umap: { ...params.umap, min_dist } })
               }
-              help="Kleine Werte ermöglichen dichtere Gruppen im reduzierten Raum."
+              help={helpText.distance}
             />
           </section>
           <section className="card parameter-card">
@@ -228,7 +223,7 @@ export function ModelingPage() {
               onChange={(min_cluster_size) =>
                 change({ hdbscan: { min_cluster_size } })
               }
-              help="Wie viele Texte mindestens ein Thema bilden. Kleine Werte ergeben oft kleinere Themen."
+              help={helpText.clusterSize}
             />
             <div className="card-divider" />
             <div className="card-title compact">
@@ -241,14 +236,11 @@ export function ModelingPage() {
               min={5}
               max={30}
               onChange={(top_n_words) => change({ top_n_words })}
-              help="Anzahl der beschreibenden Begriffe je Thema."
+              help={helpText.topicWords}
             />
             <div className="field-label">
               Repräsentationen
-              <Help title="Repräsentationen">
-                KeyBERT wählt relevante Begriffe, MMR reduziert ähnliche Wörter.
-                Ohne Auswahl werden c-TF-IDF-Begriffe verwendet.
-              </Help>
+              <Help title="Repräsentationen">{helpText.representations}</Help>
             </div>
             <div className="chips">
               {["KeyBERT", "MMR"].map((name) => (
@@ -284,10 +276,7 @@ export function ModelingPage() {
               <Type size={18} />
               <h3>Vektorisierung</h3>
             </div>
-            <Field
-              label="N-Gramme"
-              help="Einzelwörter oder Wortfolgen, zum Beispiel „erneuerbare Energie“."
-            >
+            <Field label="N-Gramme" help={helpText.ngrams}>
               <Select
                 label="N-Gramme"
                 value={String(params.vectorizer.ngram_range[1])}
@@ -315,7 +304,7 @@ export function ModelingPage() {
               onChange={(min_df) =>
                 change({ vectorizer: { ...params.vectorizer, min_df } })
               }
-              help="Mindestanteil zusammengefasster Themen, in denen ein Begriff vorkommen muss."
+              help={helpText.minFrequency}
             />
             <Range
               label="Maximale Häufigkeit"
@@ -326,7 +315,7 @@ export function ModelingPage() {
               onChange={(max_df) =>
                 change({ vectorizer: { ...params.vectorizer, max_df } })
               }
-              help="Obergrenze der Themenhäufigkeit. Bei wenigen Themen ist 1,0 eine robuste Ausgangsbasis."
+              help={helpText.maxFrequency}
             />
           </section>
         </div>

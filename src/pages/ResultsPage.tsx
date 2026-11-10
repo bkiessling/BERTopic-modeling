@@ -1,3 +1,4 @@
+import helpText from "../content/help.de.json";
 import { useState } from "react";
 import { Plot } from "../charts/Plot";
 import { useWorkbench } from "../context/WorkbenchContext";
@@ -15,9 +16,17 @@ import {
   RotateCcw,
   CircleDot,
 } from "lucide-react";
-import { DataTable, Range, Select, MultiSelect, Field } from "../components";
+import {
+  DataTable,
+  Range,
+  Select,
+  MultiSelect,
+  Field,
+  Help,
+} from "../components";
 export function ResultsPage() {
   const [showParameters, setShowParameters] = useState(false);
+  const [targetTopics, setTargetTopics] = useState(2);
   const {
     caps,
     topWords,
@@ -28,8 +37,6 @@ export function ResultsPage() {
     setDocumentSort,
     descending,
     setDescending,
-    representative,
-    setRepresentative,
     step,
     result,
     error,
@@ -49,8 +56,6 @@ export function ResultsPage() {
     setSearch,
     page,
     setPage,
-    grouped,
-    setGrouped,
     threshold,
     setThreshold,
     setSettings,
@@ -153,7 +158,7 @@ export function ResultsPage() {
         <summary>
           <Settings2 size={17} />
           <strong>Ergebnisse verbessern</strong>
-          <span>Outlier & Themennamen</span>
+          <span>Outlier, Themen & Namen</span>
         </summary>
         <div className="refine-grid">
           <div>
@@ -170,7 +175,7 @@ export function ResultsPage() {
               step={0.01}
               disabled={blocked}
               onChange={setThreshold}
-              help="Kleine Werte ordnen mehr Outlier einem Thema zu."
+              help={helpText.outliers}
             />
             <div className="button-row">
               <button
@@ -190,35 +195,76 @@ export function ResultsPage() {
             </div>
           </div>
           <div>
-            <h3>Themen mit OpenAI benennen</h3>
-            <p className="muted">
-              Nur die gezeigten Keywords werden übertragen – keine
-              Dokumenttexte. API-Nutzung kostet zusätzlich.
-            </p>
-            <div className="keyword-preview">
-              {keywords.map((t) => (
-                <p key={t.id}>
-                  <strong>{t.id}</strong>
-                  {t.keywords.join(", ")}
-                </p>
-              ))}
+            <div className="card-title compact">
+              <h3>Themen reduzieren</h3>
+              <Help title="Themen reduzieren">{helpText.topicReduction}</Help>
             </div>
+            <p className="muted">
+              Ähnliche Themen auf eine Zielanzahl zusammenfassen. Outlier werden
+              nicht mitgezählt.
+            </p>
+            <Field label="Zielanzahl Themen">
+              <input
+                type="number"
+                aria-label="Zielanzahl Themen"
+                min={1}
+                max={Math.max(1, result.stats.topics - 1)}
+                value={Math.min(
+                  targetTopics,
+                  Math.max(1, result.stats.topics - 1),
+                )}
+                disabled={blocked || result.stats.topics < 2}
+                onChange={(event) =>
+                  setTargetTopics(Number(event.target.value))
+                }
+              />
+            </Field>
             <button
               className="button secondary"
-              disabled={blocked || !caps?.key_present || !keywords.length}
-              onClick={() => void startJob("/name", { model: namingModel })}
+              disabled={
+                blocked ||
+                result.stats.topics < 2 ||
+                !Number.isInteger(targetTopics) ||
+                targetTopics < 1
+              }
+              onClick={() =>
+                void startJob("/topics/reduce", {
+                  target: Math.min(targetTopics, result.stats.topics - 1),
+                })
+              }
             >
-              Keywords senden & benennen
+              Themen zusammenfassen
             </button>
-            {!caps?.key_present && (
-              <button
-                className="button secondary"
-                onClick={() => setSettings(true)}
-              >
-                API-Key einrichten
-              </button>
+            <p className="muted">
+              Themennamen und die bisherige Outlier-Zurücksetzung werden dabei
+              verworfen.
+            </p>
+          </div>
+        </div>
+        <div className="rename-section">
+          <div>
+            <h3>Themen neu benennen</h3>
+            <p className="muted">
+              Nach Outlier-Zuordnung oder Themenreduzierung die Namen neu
+              vergeben.
+            </p>
+            {result.naming_needs_refresh && (
+              <p className="naming-refresh">
+                Die Themenstruktur wurde geändert. Bitte Themen neu benennen.
+              </p>
             )}
           </div>
+          <button
+            className="button secondary"
+            disabled={blocked || !keywords.length}
+            onClick={() =>
+              caps?.key_present
+                ? void startJob("/name", { model: namingModel })
+                : setSettings(true)
+            }
+          >
+            Themen neu benennen
+          </button>
         </div>
       </details>
       {resultTab === "topics" && (
@@ -226,6 +272,12 @@ export function ResultsPage() {
           <div className="preview-heading">
             <div>
               <h3>Themenübersicht</h3>
+              {result.naming.provider && (
+                <p>
+                  Themennamen von {result.naming.provider} ·{" "}
+                  {result.naming.model}
+                </p>
+              )}
               <p>Thema −1 enthält Texte ohne stabile Clusterzuordnung.</p>
             </div>
             <span className="quiet-chip">{result.stats.topics} Themen</span>
@@ -279,10 +331,10 @@ export function ResultsPage() {
                   maxSelections={4}
                   options={topics
                     .filter((t) => t.Thema !== -1)
-                    .map((t) => `${t.Thema} · ${t.Bezeichnung}`)}
+                    .map((t) => `${t.Thema} · ${t.Themenname}`)}
                   values={topics
                     .filter((t) => selectedTopics.includes(t.Thema))
-                    .map((t) => `${t.Thema} · ${t.Bezeichnung}`)}
+                    .map((t) => `${t.Thema} · ${t.Themenname}`)}
                   onChange={(values) =>
                     setSelectedTopics(
                       values.map((value) => Number(value.split(" · ")[0])),
@@ -292,7 +344,7 @@ export function ResultsPage() {
               </Field>
               <Range
                 label="Anzahl Keywords"
-                help="Zeigt die wichtigsten gespeicherten Keywords je Thema. Die Obergrenze entspricht den Keywords des trainierten Modells."
+                help={helpText.chartWords}
                 value={topWords}
                 min={1}
                 max={Math.max(1, Math.min(30, result.parameters.top_n_words))}
@@ -332,7 +384,7 @@ export function ResultsPage() {
               <Search size={16} />
               <input
                 aria-label="Textbeiträge durchsuchen"
-                placeholder="Texte, IDs oder Themen durchsuchen …"
+                placeholder="Texte oder Themen durchsuchen …"
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -351,37 +403,17 @@ export function ResultsPage() {
                 { value: "", label: "Alle Themen" },
                 ...topics.map((t) => ({
                   value: String(t.Thema),
-                  label: `${t.Thema} · ${t.Bezeichnung}`,
+                  label: `${t.Thema} · ${t.Themenname}`,
                 })),
               ]}
             />
-            <label className="inline-check">
-              <input
-                type="checkbox"
-                checked={representative}
-                onChange={(e) => {
-                  setRepresentative(e.target.checked);
-                  setPage(0);
-                }}
-              />
-              Nur repräsentative Beiträge
-            </label>
-            <label className="inline-check">
-              <input
-                type="checkbox"
-                checked={grouped}
-                onChange={(e) => {
-                  setGrouped(e.target.checked);
-                  setPage(0);
-                }}
-              />
-              Nach ID gruppieren
-            </label>
           </div>
           {documents ? (
             <>
               <DataTable
-                rows={documents.rows}
+                rows={documents.rows.map(
+                  ({ Repräsentativ: _unused, ...row }: Row) => row,
+                )}
                 sort={documentSort}
                 descending={descending}
                 onSort={(column) => {
@@ -394,9 +426,7 @@ export function ResultsPage() {
                 }}
               />
               <div className="pagination">
-                <span>
-                  {documents.total} Einträge · {result.stats.unique_ids} IDs
-                </span>
+                <span>{documents.total} Einträge</span>
                 <div>
                   <button
                     className="icon-button"

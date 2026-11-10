@@ -280,6 +280,61 @@ class WebApiTests(unittest.TestCase):
             ).status_code,
             400,
         )
+        analysis = spaces[self.token].analysis
+        analysis.set_topic_names(
+            {int(t): f"Themenname {t}" for t in analysis.result.topic_info.Topic if t != -1},
+            "test-model",
+        )
+        docs_with_names = self.client.get("/api/documents", headers=self.headers).json()["rows"]
+        self.assertTrue(all(row["Themenname"].startswith("Themenname") for row in docs_with_names))
+        self.assertEqual(next(iter(docs_with_names[0])), "Themenname")
+        self.assertEqual(
+            self.client.post(
+                "/api/topics/reduce", headers=self.headers, json={"target": 0}
+            ).status_code,
+            422,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/topics/reduce", headers=self.headers, json={"target": 100}
+            ).status_code,
+            400,
+        )
+        response = self.client.post("/api/topics/reduce", headers=self.headers, json={"target": 1})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.wait()["status"], "completed")
+        reduced = self.client.get("/api/results", headers=self.headers).json()
+        self.assertEqual(reduced["stats"]["topics"], 1)
+        self.assertEqual(reduced["stats"]["documents"], 60)
+        self.assertTrue(reduced["naming_needs_refresh"])
+        self.assertEqual(reduced["naming"], {})
+        self.assertEqual(reduced["topic_reductions"][-1]["to"], 1)
+        self.assertFalse(reduced["can_restore"])
+        for kind in ("similarity", "bars", "network"):
+            self.assertEqual(
+                self.client.get("/api/charts/" + kind, headers=self.headers).status_code, 200
+            )
+        spaces[self.token].openai_key = "test-only-session-key"
+        with patch(
+            "server.routes.results.name_topics", return_value={0: "Zusammengeführtes Testthema"}
+        ) as naming:
+            self.client.post("/api/name", headers=self.headers, json={"model": "gpt-4.1-mini"})
+            self.assertEqual(self.wait()["status"], "completed")
+            self.assertEqual(naming.call_args.args[2], "test-only-session-key")
+        renamed = self.client.get("/api/results", headers=self.headers).json()
+        self.assertEqual(renamed["topics"][0]["Themenname"], "Zusammengeführtes Testthema")
+        self.assertFalse(renamed["naming_needs_refresh"])
+        with zipfile.ZipFile(
+            io.BytesIO(self.client.get("/api/export", headers=self.headers).content)
+        ) as archive:
+            self.assertEqual(
+                json.loads(archive.read("manifest.json"))["metadata"]["topic_reductions"][-1]["to"],
+                1,
+            )
+            self.assertEqual(
+                json.loads(archive.read("documents.json"))[0]["topic_name"],
+                "Zusammengeführtes Testthema",
+            )
 
 
 if __name__ == "__main__":

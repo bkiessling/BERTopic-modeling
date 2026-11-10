@@ -33,3 +33,7 @@ class OutlierRequest(BaseModel):
 
 class SessionKeyRequest(BaseModel):
     key: SecretStr
+
+
+class TopicReductionRequest(BaseModel):
+    target: int = Field(ge=1, strict=True)

@@ -6,6 +6,7 @@
     "skipLibCheck": true,
     "moduleResolution": "Bundler",
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true

@@ -12,10 +12,12 @@ export function TrainingProgress({
   const stages = [
     { label: "Modell laden", start: 0, end: 5 },
     { label: "Embeddings", start: 5, end: 20 },
-    { label: "Vorbereitung", start: 20, end: 60 },
+    { label: "UMAP, HDBSCAN & Begriffe konfigurieren", start: 20, end: 60 },
     { label: "Modell fitten", start: 60, end: namingEnabled ? 92 : 95 },
-    ...(namingEnabled ? [{ label: "Themennamen", start: 92, end: 95 }] : []),
-    { label: "Diagramme", start: 95, end: 100 },
+    ...(namingEnabled
+      ? [{ label: "Themen benennen", start: 92, end: 95 }]
+      : []),
+    { label: "Visualisierungen", start: 95, end: 100 },
   ];
   return (
     <section

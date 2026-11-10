@@ -42,7 +42,6 @@ function useWorkbenchState() {
     [documents, setDocuments] = useState<Row | null>(null);
   const [search, setSearch] = useState(""),
     [page, setPage] = useState(0),
-    [grouped, setGrouped] = useState(false),
     [threshold, setThreshold] = useState(0.05),
     [settings, setSettings] = useState(false),
     [namingModel, setNamingModel] = useState("gpt-4.1-mini");
@@ -50,7 +49,6 @@ function useWorkbenchState() {
     [documentTopic, setDocumentTopic] = useState(""),
     [documentSort, setDocumentSort] = useState("ID"),
     [descending, setDescending] = useState(false),
-    [representative, setRepresentative] = useState(false),
     [pendingNaming, setPendingNaming] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null),
     completed = useRef(false),
@@ -165,7 +163,7 @@ function useWorkbenchState() {
     setDocuments(null);
     const timer = setTimeout(() => {
       api(
-        `/documents?page=${page}&search=${encodeURIComponent(search)}&grouped=${grouped}${documentTopic !== "" ? `&topic=${encodeURIComponent(documentTopic)}` : ""}&sort=${encodeURIComponent(documentSort)}&descending=${descending}&representative=${representative}`,
+        `/documents?page=${page}&search=${encodeURIComponent(search)}${documentTopic !== "" ? `&topic=${encodeURIComponent(documentTopic)}` : ""}&sort=${encodeURIComponent(documentSort)}&descending=${descending}`,
         token,
       )
         .then((data) => {
@@ -184,13 +182,11 @@ function useWorkbenchState() {
     step,
     page,
     search,
-    grouped,
     token,
     revision,
     documentTopic,
     documentSort,
     descending,
-    representative,
   ]);
   useEffect(() => {
     if (!result || step !== 2 || resultTab !== "charts") return;
@@ -425,8 +421,6 @@ function useWorkbenchState() {
     setSearch,
     page,
     setPage,
-    grouped,
-    setGrouped,
     threshold,
     setThreshold,
     settings,
@@ -458,8 +452,6 @@ function useWorkbenchState() {
     setDocumentSort,
     descending,
     setDescending,
-    representative,
-    setRepresentative,
     requestNaming,
     saveSessionKey,
   };

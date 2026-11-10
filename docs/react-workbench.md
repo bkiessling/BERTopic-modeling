@@ -24,8 +24,12 @@ Für den gewünschten kontrollierten Workflow mit Tabellen, Plotly und Hintergru
 
 ## Ergebnisansicht
 
-Zwei Ansichten: Themenübersicht und Visualisierungen. Die Textbeiträge bleiben darunter sichtbar und bieten Suche, Themenfilter, repräsentative Beiträge und Sortierung über Spaltenüberschriften. „Ergebnisse verbessern“ steht oberhalb der Ansicht; Trainingsparameter sind über das kleine Symbol am Ergebnis-Titel erreichbar.
+Zwei Ansichten: Themenübersicht und Visualisierungen. Die Textbeiträge bleiben darunter sichtbar und bieten Suche, Themenfilter, Sortierung über Spaltenüberschriften. „Ergebnisse verbessern“ steht oberhalb der Ansicht; Trainingsparameter sind über das kleine Symbol am Ergebnis-Titel erreichbar.
 
 Visualisierungen starten mit dem höheren Netzwerk. Top-Keywords bietet ein durchsuchbares Multiselect für bis zu vier Themen und einen Regler für die Keyword-Anzahl (begrenzt durch die beim Training gespeicherten Keywords). Die Balken verwenden `#0C1754`.
 
 Die Importvorschau zeigt unmittelbar nach Upload drei Originalzeilen aller Spalten; nach Bereinigung wird ausschließlich die bereinigte Vorschau angezeigt. API-Keys können beim Einschalten der Benennung im Dialog für den aktuellen Arbeitsbereich hinterlegt werden.
+
+Die Hilfe-Texte sind zentral in `src/content/help.de.json` konfigurierbar. Voreinstellungen erklärt die Heuristiken; der Reset ist ein ausgeschriebener Button. Ergebnisansichten verwenden „Themenname“ als erste Spalte und denselben Namen in Filtern und Diagrammen.
+
+„Ergebnisse verbessern“ bietet neben Outlier-Zuordnung die Reduktion ähnlicher Themen. Zielanzahlen schließen Outlier aus. Nach Strukturänderungen lassen sich Namen in der kompakten Sektion „Themen neu benennen“ aktualisieren.

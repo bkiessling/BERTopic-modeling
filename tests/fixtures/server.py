@@ -25,6 +25,11 @@ from server.app import app
 
 backend.key_binding = lambda: ("", "")
 importlib.import_module("server.routes.system").key_binding = lambda: ("", "")
-importlib.import_module("server.routes.results").key_binding = lambda: ("", "")
+results = importlib.import_module("server.routes.results")
+results.key_binding = lambda: ("", "")
+# Labels are deterministic fixtures; never send browser-test credentials to OpenAI.
+results.name_topics = lambda keywords, language, key, model: {
+    topic: f"Test-Themenname {topic}" for topic in keywords
+}
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")

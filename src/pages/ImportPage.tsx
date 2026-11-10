@@ -1,3 +1,4 @@
+import helpText from "../content/help.de.json";
 import { ArrowRight } from "lucide-react";
 import { useWorkbench } from "../context/WorkbenchContext";
 import type { Row } from "../api";
@@ -134,10 +135,7 @@ export function ImportPage() {
           {uploaded ? (
             <>
               <div className="column-fields">
-                <Field
-                  label="ID-Spalte"
-                  help="Verbindet Texte mit den ursprünglichen Einträgen."
-                >
+                <Field label="ID-Spalte" help={helpText.idColumn}>
                   <Select
                     label="ID-Spalte"
                     value={idCol}
@@ -154,10 +152,7 @@ export function ImportPage() {
                     }}
                   />
                 </Field>
-                <Field
-                  label="Textspalte(n)"
-                  help="Mehrere Spalten werden zu einzelnen Textbeiträgen untereinander angeordnet."
-                >
+                <Field label="Textspalte(n)" help={helpText.textColumns}>
                   <MultiSelect
                     label="Textspalte(n)"
                     values={textCols}
@@ -191,10 +186,7 @@ export function ImportPage() {
                     }}
                   />
                 </Field>
-                <Field
-                  label="Zusätzliche Stopwörter"
-                  help="Durch Komma getrennte Wörter oder Phrasen zum Entfernen."
-                >
+                <Field label="Zusätzliche Stopwörter" help={helpText.stopwords}>
                   <input
                     aria-label="Zusätzliche Stopwörter"
                     placeholder="z. B. newsletter, firma"
@@ -237,10 +229,12 @@ export function ImportPage() {
         <section className="card preview-card">
           <div className="preview-heading">
             <div>
-              <h3>{cleaned ? "Bereit für die Analyse" : "Datenvorschau"}</h3>
+              <h3>
+                {cleaned ? "Daten für die Modellierung" : "Datenvorschau"}
+              </h3>
               <p>
                 {cleaned
-                  ? "Bereinigte Texte und tatsächliche IDs – diese Daten werden für das Modell verwendet."
+                  ? "ID-Spalte und bereinigte Texte, die zur Modellierung genutzt werden."
                   : "Ausgewählte Spalten · erste acht Zeilen."}
               </p>
             </div>

@@ -1,5 +1,7 @@
-"""One explicit analysis object at the Streamlit session boundary."""
+"""Explicit analysis state, independent of HTTP and UI."""
 
+from copy import deepcopy
+from numbers import Integral
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from server.services.modeling.train_model import TrainingResult
@@ -17,6 +19,8 @@ class AnalysisState:
     outlier_thresholds: list[float] = field(default_factory=list)
     topic_names: dict[int, str] = field(default_factory=dict)
     naming_metadata: dict = field(default_factory=dict)
+    topic_reductions: list[dict] = field(default_factory=list)
+    names_need_refresh: bool = False
     trained_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def __post_init__(self):
@@ -27,6 +31,7 @@ class AnalysisState:
         return with_topic_names(self.result.topic_info, self.topic_names)
 
     def set_topic_names(self, labels, model):
+        self.names_need_refresh = False
         self.topic_names = dict(labels)
         self.naming_metadata = {
             "provider": "OpenAI",
@@ -37,6 +42,7 @@ class AnalysisState:
         }
 
     def clear_topic_names(self):
+        self.names_need_refresh = self.names_need_refresh or bool(self.topic_names)
         self.topic_names.clear()
         self.naming_metadata.clear()
 
@@ -61,3 +67,32 @@ class AnalysisState:
         self.original_topics = None
         self.outlier_thresholds.clear()
         return True
+
+    def reduce_topics(self, target):
+        """Merge semantically similar topics on a copy; preserve the result if merging fails."""
+        current = len(set(self.result.model.topics_) - {-1})
+        if (
+            isinstance(target, bool)
+            or not isinstance(target, Integral)
+            or not 1 <= target < current
+        ):
+            raise ValueError(f"Die Zielanzahl muss zwischen 1 und {max(1, current - 1)} liegen.")
+        model = self.result.model
+        # These fitted objects are read-only during reduce_topics. Avoid copying encoder weights.
+        shared = [
+            getattr(model, name, None)
+            for name in ("embedding_model", "umap_model", "hdbscan_model")
+        ]
+        candidate = deepcopy(model, {id(value): value for value in shared if value is not None})
+        candidate.reduce_topics(
+            self.result.documents, nr_topics=int(target) + int(-1 in model.topics_)
+        )
+        info = candidate.get_topic_info()
+        if len(set(candidate.topics_) - {-1}) != target:
+            raise ValueError("Die gewünschte Themenanzahl konnte nicht hergestellt werden.")
+        self.result.model = candidate
+        self.result.topic_info = info
+        self.topic_reductions.append({"from": current, "to": int(target)})
+        # Saved outlier assignments refer to the old topic IDs and cannot be restored safely.
+        self.original_topics = None
+        self.clear_topic_names()

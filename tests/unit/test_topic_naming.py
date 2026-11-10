@@ -156,7 +156,7 @@ class TopicNamingTests(unittest.TestCase):
             [1, 2, 3],
         )
         state.set_topic_names({0: "Solarenergie"}, "gpt-4.1-mini")
-        self.assertEqual(state.named_topic_info().CustomName.tolist(), ["outlier", "Solarenergie"])
+        self.assertEqual(state.named_topic_info().CustomName.tolist(), ["Outlier", "Solarenergie"])
         self.assertNotIn("CustomName", info.columns)
         state.reduce_outliers(0.1)
         self.assertEqual(state.topic_names, {})

@@ -59,7 +59,7 @@ def train(body: TrainRequest, x_workspace_id: Annotated[str, Header()]):
                 analysis.set_topic_names(labels, config.naming_model)
             except TopicNamingError as exc:
                 warning = str(exc)
-        report(95, "Bereite Dokumentenkarte vor …")
+        report(95, "Bereite Visualisierungen vor …")
         coordinates = project_documents(result.embeddings)
         with state.lock:
             state.analysis, state.coordinates, state.tsne_coordinates = analysis, coordinates, None

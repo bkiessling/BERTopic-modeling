@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 from server.runtime import workspace, analysis_required, run_job, records
 from server.settings import key_binding
-from server.schemas import NamingRequest, OutlierRequest
+from server.schemas import NamingRequest, OutlierRequest, TopicReductionRequest
 from server.services.analysis.topic_table import build_topic_table, compute_topic_stats
 from server.services.analysis.document_table import build_document_table
 from server.services.analysis.export import build_result_archive
@@ -42,6 +42,8 @@ def results(x_workspace_id: Annotated[str, Header()]):
             for topic, words in topic_keywords(analysis.result.model).items()
         ],
         "naming": analysis.naming_metadata,
+        "naming_needs_refresh": analysis.names_need_refresh,
+        "topic_reductions": analysis.topic_reductions,
         "can_restore": analysis.original_topics is not None,
     }
 
@@ -67,6 +69,8 @@ def documents(
         "Textbeitrag",
         "Textbeitrag",
     )
+    names = dict(zip(analysis.named_topic_info().Topic, analysis.named_topic_info().CustomName))
+    frame.insert(0, "Themenname", frame.Thema.map(names))
     # BERTopic's representative documents are examples, not a confidence ranking.
     examples = analysis.result.model.representative_docs_ or {}
     frame["Repräsentativ"] = [
@@ -89,6 +93,7 @@ def documents(
             frame.groupby("ID", sort=False, dropna=False)
             .agg(
                 {
+                    "Themenname": lambda values: " | ".join(dict.fromkeys(values)),
                     "Thema": lambda values: sorted(set(values)),
                     "Textbeitrag": lambda values: " | ".join(values),
                     "Keywords": lambda values: list(
@@ -128,7 +133,7 @@ def chart(
     analysis = analysis_required(state)
     model = analysis.result.model
     info = analysis.named_topic_info()
-    names = analysis.topic_names
+    names = dict(zip(info.Topic, info.CustomName))
     if kind == "similarity":
         figure = plot_topic_similarity(model, topic_names=names)
     elif kind == "bars":
@@ -144,10 +149,7 @@ def chart(
             topic not in info.Topic.tolist() or topic == -1 for topic in selected
         ):
             raise HTTPException(400, "Ein bis vier vorhandene Themen auswählen.")
-        labels = [
-            f"{topic} · {names.get(topic, model.get_topic_info().set_index('Topic').loc[topic, 'Name'])}"
-            for topic in selected
-        ]
+        labels = [f"{topic} · {names[topic]}" for topic in selected]
         figure = _plot_barcharts(
             model,
             selected,
@@ -226,6 +228,23 @@ def name(body: NamingRequest, x_workspace_id: Annotated[str, Header()]):
     return run_job(state, "naming", task)
 
 
+@router.post("/api/topics/reduce")
+def reduce_topics(body: TopicReductionRequest, x_workspace_id: Annotated[str, Header()]):
+    state = workspace(x_workspace_id)
+    analysis = analysis_required(state)
+    current = len(set(analysis.result.model.topics_) - {-1})
+    if body.target >= current:
+        raise HTTPException(400, "Die Zielanzahl muss kleiner als die aktuelle Themenanzahl sein.")
+
+    def task(report):
+        report(20, "Fasse ähnliche Themen zusammen …")
+        with state.lock:
+            analysis.reduce_topics(body.target)
+        return "Themen zusammengefasst. Die Themennamen können jetzt neu vergeben werden."
+
+    return run_job(state, "reduction", task)
+
+
 @router.post("/api/outliers")
 def outliers(body: OutlierRequest, x_workspace_id: Annotated[str, Header()]):
     state = workspace(x_workspace_id)
@@ -268,6 +287,7 @@ def export(x_workspace_id: Annotated[str, Header()]):
             "preprocessing": analysis.preprocessing,
             "outlier_thresholds": analysis.outlier_thresholds,
             "topic_naming": analysis.naming_metadata,
+            "topic_reductions": analysis.topic_reductions,
         },
     )
     return Response(
