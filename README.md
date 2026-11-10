@@ -150,4 +150,4 @@ Unter **Ergebnisse verbessern** gibt es zusätzlich:
 
 **Outlier (−1)** heißen immer „Outlier“. Sie sind von manueller und KI-Benennung sowie gezielter Zusammenführung ausgeschlossen. Hilfe-Buttons an der Outlier-Kennzahl und der Outlier-Bearbeitung erklären die Bedeutung. Manuelle Namen und Zusammenführungen werden im Export dokumentiert; wie die übrigen Ergebnisse liegen sie bis zum Serverneustart im Arbeitsspeicher.
 
-Das Schwalben-SVG in `public/schwalbe.svg` wird als Browser-Icon und vor dem App-Titel verwendet.
+Die blaue Schwalbe in `public/schwalbe.svg` steht vor dem App-Titel. Als Browser-Icon dient die weiße Variante `public/schwalbe-weiss.svg`. Blaue Aktionsbuttons verwenden einheitlich 200 × 48 Pixel (bei schmalen Containern höchstens deren Breite).

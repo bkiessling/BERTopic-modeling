@@ -37,7 +37,7 @@ test("clean desktop and mobile import, connection dialog", async ({
   await expect(page.locator("h1 img")).toHaveAttribute("src", "/schwalbe.svg");
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
     "href",
-    "/schwalbe.svg",
+    "/schwalbe-weiss.svg",
   );
   await expect(
     page.getByText("BERTopic workspace", { exact: true }),
@@ -262,6 +262,16 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   await expect(
     page.getByRole("button", { name: "Parameter zurücksetzen" }),
   ).toBeVisible();
+  const actionButtons = [
+    page.getByRole("button", { name: "Parameter zurücksetzen", exact: true }),
+    page.getByRole("button", { name: "Modell trainieren", exact: true }),
+    page.getByRole("button", { name: "OpenAI-Modell", exact: true }),
+  ];
+  const sizes = await Promise.all(
+    actionButtons.map((button) => button.boundingBox()),
+  );
+  expect(sizes.map((box) => box!.width)).toEqual([200, 200, 200]);
+  expect(sizes.map((box) => box!.height)).toEqual([48, 48, 48]);
   await page.screenshot({
     path: info.outputPath("model-desktop.png"),
     fullPage: true,

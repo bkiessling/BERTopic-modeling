@@ -1699,3 +1699,19 @@ progress::-webkit-progress-value {
     gap: 8px;
   }
 }
+
+/* Shared dimensions for every blue action, including cards and dialogs. */
+.button:not(.next-step) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  max-width: 100%;
+  height: 48px;
+  min-height: 48px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: center;
+}

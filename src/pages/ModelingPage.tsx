@@ -167,7 +167,7 @@ export function ModelingPage() {
                 className="button secondary"
                 onClick={() => setSettings(true)}
               >
-                Modell
+                OpenAI-Modell
               </button>
             </div>
           </section>
