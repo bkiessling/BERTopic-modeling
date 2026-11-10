@@ -1,3 +1,4 @@
+import { NetworkIcon } from "./components/NetworkIcon";
 import {
   Check,
   ChevronRight,
@@ -7,7 +8,6 @@ import {
   X,
   ChartScatter,
   ListTree,
-  Network,
 } from "lucide-react";
 import { TrainingProgress } from "./components/TrainingProgress";
 import { useWorkbench } from "./context/WorkbenchContext";
@@ -103,7 +103,7 @@ export default function App() {
             <div className="segmented">
               {[
                 { id: "topics", label: "Themenübersicht", icon: ListTree },
-                { id: "charts", label: "Visualisierungen", icon: Network },
+                { id: "charts", label: "Visualisierungen", icon: NetworkIcon },
               ].map((item) => (
                 <button
                   key={item.id}

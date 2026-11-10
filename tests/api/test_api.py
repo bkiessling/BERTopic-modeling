@@ -381,7 +381,7 @@ class WebApiTests(unittest.TestCase):
         )
         docs_with_names = self.client.get("/api/documents", headers=self.headers).json()["rows"]
         self.assertTrue(all(row["Themenname"].startswith("Themenname") for row in docs_with_names))
-        self.assertEqual(next(iter(docs_with_names[0])), "Thema")
+        self.assertEqual(next(iter(docs_with_names[0])), "ID")
         self.assertEqual(
             self.client.post(
                 "/api/topics/reduce", headers=self.headers, json={"target": 0}

@@ -145,7 +145,7 @@ export function ResultsPage() {
                 : ""}
             </span>
           </div>
-          <DataTable rows={topics} />
+          <DataTable tableKey="topics" rows={topics} />
         </section>
       )}
       {resultTab === "charts" && (
@@ -182,7 +182,7 @@ export function ResultsPage() {
               ? "Kosinus-Ähnlichkeit der häufigsten Themen. Kein statistischer z-Wert."
               : chartKind === "bars"
                 ? "Repräsentationsgewichte – keine Wahrscheinlichkeiten. Wähle bis zu vier Themen."
-                : "Ein Punkt pro Text, Farben entsprechen Themen. Räumliche Nähe ist explorativ zu interpretieren."}
+                : "Ein Punkt pro Text, Farben entsprechen Themen. Outlier sind ausgeblendet und lassen sich über die Legende einblenden. Räumliche Nähe ist explorativ zu interpretieren."}
           </p>
           {chartKind === "bars" && (
             <div className="keyword-controls">
@@ -274,6 +274,7 @@ export function ResultsPage() {
           {documents ? (
             <>
               <DataTable
+                tableKey="documents"
                 rows={documents.rows.map(
                   ({ Repräsentativ: _unused, ...row }: Row) => row,
                 )}

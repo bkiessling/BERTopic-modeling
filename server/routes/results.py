@@ -99,13 +99,6 @@ def documents(
     )
     names = dict(zip(analysis.named_topic_info().Topic, analysis.named_topic_info().CustomName))
     frame.insert(0, "Themenname", frame.Thema.map(names))
-    frame = frame[
-        [
-            "Thema",
-            "Themenname",
-            *[column for column in frame.columns if column not in ("Thema", "Themenname")],
-        ]
-    ]
     frame = frame[~frame.Thema.isin(analysis.excluded_topics)]
     # BERTopic's representative documents are examples, not a confidence ranking.
     examples = analysis.result.model.representative_docs_ or {}
@@ -140,6 +133,8 @@ def documents(
             )
             .reset_index()
         )
+    leading = ["ID", "Thema", "Themenname", "Textbeitrag"]
+    frame = frame[leading + [column for column in frame.columns if column not in leading]]
     if sort not in frame.columns:
         raise HTTPException(400, "Unbekannte Sortierspalte.")
     if sort in ("Keywords",) or (grouped and sort == "Thema"):
@@ -229,6 +224,8 @@ def chart(
             category_orders={"Thema": [labels[topic] for topic in sorted(labels)]},
         )
         figure.update_traces(marker={"size": 7}, hovertemplate="%{fullData.name}<extra></extra>")
+        if -1 in labels:
+            figure.update_traces(visible="legendonly", selector={"name": labels[-1]})
         figure.update_layout(
             xaxis_visible=False, yaxis_visible=False, height=760, legend={"orientation": "h"}
         )

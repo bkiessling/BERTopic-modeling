@@ -37,3 +37,5 @@ Die Hilfe-Texte sind zentral in `src/content/help.de.json` konfigurierbar. Vorei
 Die Analyse-Tabs stehen direkt unter der Hauptnavigation, zentriert mit eigenen Icons. Unter „Ergebnisse verbessern“ können ausgewählte Themen gezielt zusammengeführt und Themennamen ohne API bearbeitet werden. Andere Namen überstehen das Umnummerieren von Themen-IDs bei einer Zusammenführung. Manuelle Namen übersteuern KI-Namen. Outlier behalten zwingend ihren festen Namen; eine zentrale Hilfe erklärt sie.
 
 Die Verbesserungsaktionen bilden ein Raster aus zwei Spalten und drei Reihen, mit ausgerichteten Aktionsleisten. Themen lassen sich reversibel aus der Auswertung ausschließen; Tabellen, Kennzahlen, Diagramme und Export berücksichtigen dieselbe Auswahl. Strukturänderungen erfordern zuvor „Alle wieder einblenden“. Die Netzwerkfarben werden pro Themen-ID zugeordnet; Outlier sind grau.
+
+Die Texttabelle beginnt mit ID, Thema, Themenname und Textbeitrag. Spaltenbreiten sind über die Trennlinien in den Tabellenköpfen verstellbar; die Ergebnisansichten behalten sie beim Blättern und Filtern. Outlier sind nur im Netzwerk zunächst ausgeblendet und über die Legende einschaltbar.

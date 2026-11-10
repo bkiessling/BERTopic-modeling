@@ -355,11 +355,44 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   await expect(
     page.getByLabel("Nach ID gruppieren", { exact: true }),
   ).toHaveCount(0);
-  await expect(page.locator(".documents-card th").first()).toContainText(
+  await expect(page.locator(".documents-card th").first()).toContainText("ID");
+  await expect(page.locator(".documents-card th").nth(1)).toContainText(
     "Thema",
   );
+  await expect(page.locator(".documents-card th").nth(2)).toContainText(
+    "Themenname",
+  );
+  const resize = page.getByRole("separator", {
+    name: "Spaltenbreite Textbeitrag",
+    exact: true,
+  });
+  await resize.scrollIntoViewIfNeeded();
+  const handle = await resize.boundingBox();
+  const header = page.locator(".documents-card th").filter({ has: resize });
+  const widthBefore = (await header.boundingBox())!.width;
+  await page.mouse.move(
+    handle!.x + handle!.width / 2,
+    handle!.y + handle!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    handle!.x + handle!.width / 2 + 65,
+    handle!.y + handle!.height / 2,
+    { steps: 5 },
+  );
+  await page.mouse.up();
+  expect((await header.boundingBox())!.width).toBeGreaterThan(widthBefore + 50);
+  await resize.focus();
+  await page.keyboard.press("ArrowRight");
+  const resizedWidth = await resize.getAttribute("aria-valuenow");
   await page.getByLabel("Textbeiträge durchsuchen").fill("computer");
   await expect(page.getByText(/20 Einträge/)).toBeVisible();
+  await expect(
+    page.getByRole("separator", {
+      name: "Spaltenbreite Textbeitrag",
+      exact: true,
+    }),
+  ).toHaveAttribute("aria-valuenow", resizedWidth!);
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Ergebnisse exportieren" }).click();
   expect((await downloadPromise).suggestedFilename()).toBe(
@@ -494,7 +527,7 @@ test("real API: import, clean, train, all charts, search, download, restore", as
     .click();
 
   await expect(
-    page.locator(".documents-card tbody tr").first().locator("td").nth(1),
+    page.locator(".documents-card tbody tr").first().locator("td").nth(2),
   ).toContainText("Test-Themenname");
   expect(errors).toEqual([]);
 });
