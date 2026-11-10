@@ -1,4 +1,4 @@
-# React-Workbench · #NDRfragt Themenfinder
+# React-Workbench · #NDRfragt Themencluster
 
 Die Anwendung besteht ausschließlich aus React/TypeScript und einem Python-/FastAPI-Backend. Die fachlichen BERTopic-Module wurden beibehalten; eine Streamlit-Oberfläche wird nicht mehr mitgeführt.
 
@@ -7,7 +7,7 @@ Die Anwendung besteht ausschließlich aus React/TypeScript und einem Python-/Fas
 ## Design
 
 - `#0C1754` als Hauptakzent, `#2671C6` für Hover/Fokus, `#FAFBFC` als heller Hintergrund.
-- Topic Modeling im Header, „#NDRfragt Themenfinder“ als Titel.
+- Topic Modeling im Header, „#NDRfragt Themencluster“ als Titel.
 - Zentrierte Navigation Import · Modellierung · Ergebnisse, ohne Sidebar oder Footertext.
 - Importfelder mit gleichen Höhen und Abständen: ID zuerst, dann durchsuchbares Textspalten-Multiselect ohne Vorauswahl.
 - Gefilterte Originalvorschau vor der Bereinigung; danach direkt die bereinigten Texte und tatsächlichen IDs.

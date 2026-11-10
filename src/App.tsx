@@ -68,7 +68,7 @@ export default function App() {
                 alt=""
                 aria-hidden="true"
               />
-              <span>#NDRfragt Themenfinder</span>
+              <span>#NDRfragt Themencluster</span>
             </h1>
           </div>
         </div>

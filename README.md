@@ -1,4 +1,4 @@
-# Topic Modeling · #NDRfragt Themenfinder
+# Topic Modeling · #NDRfragt Themencluster
 
 Lokale Themenanalyse mit **React/TypeScript**, **FastAPI** und **BERTopic**. Texte importieren, Modelle konfigurieren und Ergebnisse untersuchen – ohne Sidebar. Die aktuelle Anwendung liegt im Branch `dev`. Die weitere Entwicklung erfolgt direkt dort; neue Feature-Branches werden nur bei ausdrücklichem Bedarf angelegt.
 

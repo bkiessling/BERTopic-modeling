@@ -29,11 +29,11 @@ test("clean desktop and mobile import, connection dialog", async ({
   ).toBeDisabled();
   await expect(
     page.getByRole("heading", {
-      name: "#NDRfragt Themenfinder",
+      name: "#NDRfragt Themencluster",
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page).toHaveTitle("#NDRfragt Themenfinder");
+  await expect(page).toHaveTitle("#NDRfragt Themencluster");
   await expect(page.locator("h1 img")).toHaveAttribute("src", "/schwalbe.svg");
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
     "href",
