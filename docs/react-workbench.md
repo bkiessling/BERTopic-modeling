@@ -30,8 +30,10 @@ Visualisierungen starten mit dem höheren Netzwerk. Top-Keywords bietet ein durc
 
 Die Importvorschau zeigt unmittelbar nach Upload drei Originalzeilen aller Spalten; nach Bereinigung wird ausschließlich die bereinigte Vorschau angezeigt. API-Keys können beim Einschalten der Benennung im Dialog für den aktuellen Arbeitsbereich hinterlegt werden.
 
-Die Hilfe-Texte sind zentral in `src/content/help.de.json` konfigurierbar. Voreinstellungen erklärt die Heuristiken; der Reset ist ein ausgeschriebener Button. Ergebnisansichten verwenden „Themenname“ als erste Spalte und denselben Namen in Filtern und Diagrammen.
+Die Hilfe-Texte sind zentral in `src/content/help.de.json` konfigurierbar. Voreinstellungen erklärt die Heuristiken; der Reset ist ein ausgeschriebener Button. Ergebnisansichten verwenden „Thema“ als erste und „Themenname“ als zweite Spalte und denselben Namen in Filtern und Diagrammen.
 
 „Ergebnisse verbessern“ bietet neben Outlier-Zuordnung die Reduktion ähnlicher Themen. Zielanzahlen schließen Outlier aus. Nach Strukturänderungen lassen sich Namen in der kompakten Sektion „Themen neu benennen“ aktualisieren.
 
 Die Analyse-Tabs stehen direkt unter der Hauptnavigation, zentriert mit eigenen Icons. Unter „Ergebnisse verbessern“ können ausgewählte Themen gezielt zusammengeführt und Themennamen ohne API bearbeitet werden. Andere Namen überstehen das Umnummerieren von Themen-IDs bei einer Zusammenführung. Manuelle Namen übersteuern KI-Namen. Outlier behalten zwingend ihren festen Namen; eine zentrale Hilfe erklärt sie.
+
+Die Verbesserungsaktionen bilden ein Raster aus zwei Spalten und drei Reihen, mit ausgerichteten Aktionsleisten. Themen lassen sich reversibel aus der Auswertung ausschließen; Tabellen, Kennzahlen, Diagramme und Export berücksichtigen dieselbe Auswahl. Strukturänderungen erfordern zuvor „Alle wieder einblenden“. Die Netzwerkfarben werden pro Themen-ID zugeordnet; Outlier sind grau.

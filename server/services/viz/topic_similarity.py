@@ -5,10 +5,14 @@ import plotly.graph_objects as go
 from sklearn.metrics.pairwise import cosine_similarity
 
 
-def plot_topic_similarity(topic_model, top_n_topics: int = 20, topic_names=None):
+def plot_topic_similarity(
+    topic_model, top_n_topics: int = 20, topic_names=None, excluded_topics=()
+):
     topic_names = topic_names or {}
     info = topic_model.get_topic_info()
-    selected = info[info.Topic != -1].nlargest(top_n_topics, "Count")
+    selected = info[(info.Topic != -1) & ~info.Topic.isin(excluded_topics)].nlargest(
+        top_n_topics, "Count"
+    )
     if selected.empty:
         fig = go.Figure()
         fig.add_annotation(text="Keine Themen außer Outlier vorhanden.", showarrow=False)

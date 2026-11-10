@@ -322,6 +322,17 @@ function useWorkbenchState() {
       setNotice("");
     });
   }
+  async function updateExclusions(topics?: number[]) {
+    await perform("exclusion", async () => {
+      const response = await api(
+        topics ? "/topics/exclude" : "/topics/include-all",
+        token,
+        post(topics ? { topics } : {}),
+      );
+      await loadResults(token);
+      setNotice(response.message);
+    });
+  }
   async function renameTopic(topic: number, label: string) {
     await perform("label", async () => {
       await api("/topics/label", token, post({ topic, label }));
@@ -447,6 +458,7 @@ function useWorkbenchState() {
     startJob,
     download,
     renameTopic,
+    updateExclusions,
     modelOptions,
     topics,
     keywords,

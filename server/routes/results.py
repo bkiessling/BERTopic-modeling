@@ -15,6 +15,7 @@ from server.schemas import (
     TopicReductionRequest,
     TopicMergeRequest,
     TopicLabelRequest,
+    TopicExclusionRequest,
 )
 from server.services.analysis.topic_table import build_topic_table, compute_topic_stats
 from server.services.analysis.document_table import build_document_table
@@ -23,22 +24,35 @@ from server.services.analysis.topic_naming import name_topics, topic_keywords
 from server.services.viz.topic_similarity import plot_topic_similarity
 from server.services.viz.bar_chart import _plot_barcharts
 from server.services.viz.projection import project_documents
+from server.services.viz.colors import topic_colors
 
 router = APIRouter()
+
+
+def structural_analysis(state):
+    analysis = analysis_required(state)
+    try:
+        analysis.require_all_topics_visible()
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
+    return analysis
 
 
 @router.get("/api/results")
 def results(x_workspace_id: Annotated[str, Header()]):
     state = workspace(x_workspace_id)
     analysis = analysis_required(state)
-    info, docs = analysis.named_topic_info(), analysis.result.documents
+    full_info = analysis.named_topic_info()
+    info = full_info[~full_info.Topic.isin(analysis.excluded_topics)]
+    indices = analysis.visible_indices()
+    docs = [analysis.result.documents[index] for index in indices]
     n_topics, outliers, average = compute_topic_stats(info, docs)
     return {
         "topics": records(build_topic_table(info, docs, analysis.result.config.top_n_words)),
         "stats": {
             "topics": n_topics,
             "documents": len(docs),
-            "unique_ids": len(set(analysis.ids)),
+            "unique_ids": len({analysis.ids[index] for index in indices}),
             "outliers": float(outliers),
             "average": average,
         },
@@ -46,12 +60,18 @@ def results(x_workspace_id: Annotated[str, Header()]):
         "keywords": [
             {"id": topic, "keywords": words}
             for topic, words in topic_keywords(analysis.result.model).items()
+            if topic not in analysis.excluded_topics
         ],
         "naming": analysis.naming_metadata,
-        "naming_needs_refresh": analysis.names_need_refresh,
+        "naming_needs_refresh": bool(analysis.topics_needing_names - analysis.excluded_topics),
         "topic_reductions": analysis.topic_reductions,
         "topic_merges": analysis.topic_merges,
         "manual_topic_names": analysis.manual_topic_names,
+        "excluded_topics": records(
+            full_info[full_info.Topic.isin(analysis.excluded_topics)][
+                ["Topic", "CustomName", "Count"]
+            ]
+        ),
         "can_restore": analysis.original_topics is not None,
     }
 
@@ -79,6 +99,14 @@ def documents(
     )
     names = dict(zip(analysis.named_topic_info().Topic, analysis.named_topic_info().CustomName))
     frame.insert(0, "Themenname", frame.Thema.map(names))
+    frame = frame[
+        [
+            "Thema",
+            "Themenname",
+            *[column for column in frame.columns if column not in ("Thema", "Themenname")],
+        ]
+    ]
+    frame = frame[~frame.Thema.isin(analysis.excluded_topics)]
     # BERTopic's representative documents are examples, not a confidence ranking.
     examples = analysis.result.model.representative_docs_ or {}
     frame["Repräsentativ"] = [
@@ -141,9 +169,12 @@ def chart(
     analysis = analysis_required(state)
     model = analysis.result.model
     info = analysis.named_topic_info()
+    info = info[~info.Topic.isin(analysis.excluded_topics)]
     names = dict(zip(info.Topic, info.CustomName))
     if kind == "similarity":
-        figure = plot_topic_similarity(model, topic_names=names)
+        figure = plot_topic_similarity(
+            model, topic_names=names, excluded_topics=analysis.excluded_topics
+        )
     elif kind == "bars":
         try:
             selected = (
@@ -179,27 +210,23 @@ def chart(
             int(row.Topic): f"{int(row.Topic)} · {names.get(int(row.Topic), row.Name)}"
             for row in info.itertuples()
         }
+        indices = analysis.visible_indices()
         points = pd.DataFrame(
             {
-                "x": coords[:, 0],
-                "y": coords[:, 1],
-                "Thema": [labels[topic] for topic in model.topics_],
+                "x": coords[indices, 0],
+                "y": coords[indices, 1],
+                "Thema": [labels[model.topics_[index]] for index in indices],
             }
         )
+        colors = topic_colors(info.Topic.tolist())
         figure = px.scatter(
             points,
             x="x",
             y="y",
             color="Thema",
-            opacity=0.7,
-            color_discrete_sequence=[
-                "#0C1754",
-                "#56a998",
-                "#dbab67",
-                "#e48599",
-                "#2671C6",
-                "#a68ac8",
-            ],
+            opacity=0.8,
+            color_discrete_map={labels[topic]: color for topic, color in colors.items()},
+            category_orders={"Thema": [labels[topic] for topic in sorted(labels)]},
         )
         figure.update_traces(marker={"size": 7}, hovertemplate="%{fullData.name}<extra></extra>")
         figure.update_layout(
@@ -226,7 +253,11 @@ def name(body: NamingRequest, x_workspace_id: Annotated[str, Header()]):
     def task(report):
         report(20, "Benenne Themen anhand der Keywords …")
         labels = name_topics(
-            topic_keywords(analysis.result.model),
+            {
+                topic: words
+                for topic, words in topic_keywords(analysis.result.model).items()
+                if topic not in analysis.excluded_topics
+            },
             analysis.result.config.language,
             (state.openai_key or key_binding()[0]),
             body.model,
@@ -234,6 +265,28 @@ def name(body: NamingRequest, x_workspace_id: Annotated[str, Header()]):
         analysis.set_topic_names(labels, body.model)
 
     return run_job(state, "naming", task)
+
+
+@router.post("/api/topics/exclude")
+def exclude(body: TopicExclusionRequest, x_workspace_id: Annotated[str, Header()]):
+    state = workspace(x_workspace_id)
+    with state.lock:
+        idle(state)
+        analysis = analysis_required(state)
+        try:
+            analysis.exclude_topics(body.topics)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+    return {"message": "Themen aus der Auswertung ausgeschlossen."}
+
+
+@router.post("/api/topics/include-all")
+def include_all(x_workspace_id: Annotated[str, Header()]):
+    state = workspace(x_workspace_id)
+    with state.lock:
+        idle(state)
+        analysis_required(state).excluded_topics.clear()
+    return {"message": "Alle Themen wieder eingeblendet."}
 
 
 @router.post("/api/topics/label")
@@ -252,7 +305,7 @@ def set_label(body: TopicLabelRequest, x_workspace_id: Annotated[str, Header()])
 @router.post("/api/topics/merge")
 def merge(body: TopicMergeRequest, x_workspace_id: Annotated[str, Header()]):
     state = workspace(x_workspace_id)
-    analysis = analysis_required(state)
+    analysis = structural_analysis(state)
     try:
         analysis.validate_merge(body.topics)
     except ValueError as exc:
@@ -270,7 +323,7 @@ def merge(body: TopicMergeRequest, x_workspace_id: Annotated[str, Header()]):
 @router.post("/api/topics/reduce")
 def reduce_topics(body: TopicReductionRequest, x_workspace_id: Annotated[str, Header()]):
     state = workspace(x_workspace_id)
-    analysis = analysis_required(state)
+    analysis = structural_analysis(state)
     current = len(set(analysis.result.model.topics_) - {-1})
     if body.target >= current:
         raise HTTPException(400, "Die Zielanzahl muss kleiner als die aktuelle Themenanzahl sein.")
@@ -287,7 +340,7 @@ def reduce_topics(body: TopicReductionRequest, x_workspace_id: Annotated[str, He
 @router.post("/api/outliers")
 def outliers(body: OutlierRequest, x_workspace_id: Annotated[str, Header()]):
     state = workspace(x_workspace_id)
-    analysis = analysis_required(state)
+    analysis = structural_analysis(state)
 
     def task(report):
         report(20, "Ordne Outlier neu zu …")
@@ -300,7 +353,7 @@ def outliers(body: OutlierRequest, x_workspace_id: Annotated[str, Header()]):
 @router.post("/api/outliers/restore")
 def restore(x_workspace_id: Annotated[str, Header()]):
     state = workspace(x_workspace_id)
-    analysis = analysis_required(state)
+    analysis = structural_analysis(state)
 
     def task(report):
         report(20, "Stelle ursprüngliche Zuordnungen wieder her …")
@@ -314,11 +367,13 @@ def restore(x_workspace_id: Annotated[str, Header()]):
 def export(x_workspace_id: Annotated[str, Header()]):
     state = workspace(x_workspace_id)
     analysis = analysis_required(state)
+    indices = analysis.visible_indices()
+    info = analysis.named_topic_info()
     content = build_result_archive(
-        analysis.result.documents,
-        analysis.ids,
-        analysis.result.model.topics_,
-        analysis.named_topic_info(),
+        [analysis.result.documents[index] for index in indices],
+        [analysis.ids[index] for index in indices],
+        [analysis.result.model.topics_[index] for index in indices],
+        info[~info.Topic.isin(analysis.excluded_topics)],
         analysis.result.config.to_dict(),
         {
             "trained_at": analysis.trained_at,
@@ -328,7 +383,13 @@ def export(x_workspace_id: Annotated[str, Header()]):
             "topic_naming": analysis.naming_metadata,
             "topic_reductions": analysis.topic_reductions,
             "topic_merges": analysis.topic_merges,
-            "manual_topic_names": analysis.manual_topic_names,
+            "manual_topic_names": {
+                topic: label
+                for topic, label in analysis.manual_topic_names.items()
+                if topic not in analysis.excluded_topics
+            },
+            "excluded_topics": sorted(analysis.excluded_topics),
+            "source_document_count": len(analysis.result.documents),
         },
     )
     return Response(

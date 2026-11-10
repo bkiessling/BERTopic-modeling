@@ -47,3 +47,7 @@ class TopicMergeRequest(BaseModel):
 class TopicLabelRequest(BaseModel):
     topic: int = Field(ge=0, strict=True)
     label: str = Field(min_length=1, max_length=120)
+
+
+class TopicExclusionRequest(BaseModel):
+    topics: list[Annotated[int, Field(strict=True, ge=-1)]] = Field(min_length=1)

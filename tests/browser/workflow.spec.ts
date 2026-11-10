@@ -356,7 +356,7 @@ test("real API: import, clean, train, all charts, search, download, restore", as
     page.getByLabel("Nach ID gruppieren", { exact: true }),
   ).toHaveCount(0);
   await expect(page.locator(".documents-card th").first()).toContainText(
-    "Themenname",
+    "Thema",
   );
   await page.getByLabel("Textbeiträge durchsuchen").fill("computer");
   await expect(page.getByText(/20 Einträge/)).toBeVisible();
@@ -368,6 +368,43 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   await page.reload();
   await expect(page.getByRole("heading", { name: "Ergebnisse" })).toBeVisible();
   await page.getByText("Ergebnisse verbessern", { exact: true }).click();
+  const cards = page.locator(".refine-item");
+  await expect(cards).toHaveCount(6);
+  for (let index = 0; index < 6; index += 2) {
+    const a = await cards.nth(index).locator(".refine-actions").boundingBox();
+    const b = await cards
+      .nth(index + 1)
+      .locator(".refine-actions")
+      .boundingBox();
+    expect(Math.abs(a!.y - b!.y)).toBeLessThan(1);
+  }
+  await page
+    .getByRole("button", { name: "Themen zum Ausschließen", exact: true })
+    .click();
+  await page
+    .getByRole("group", { name: "Themen auswählen", exact: true })
+    .locator('input[type="checkbox"]')
+    .first()
+    .check();
+  await page.keyboard.press("Escape");
+  const visibleBefore = Number(
+    await page.locator(".stat-card").first().locator("strong").innerText(),
+  );
+  await page
+    .getByRole("button", { name: "Themen ausschließen", exact: true })
+    .click();
+  await expect(page.locator(".stat-card").first().locator("strong")).toHaveText(
+    String(visibleBefore - 1),
+  );
+  await expect(
+    page.getByRole("button", { name: "Themen zusammenfassen", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Alle wieder einblenden", exact: true })
+    .click();
+  await expect(page.locator(".stat-card").first().locator("strong")).toHaveText(
+    String(visibleBefore),
+  );
   const subnav = page.getByRole("navigation", {
     name: "Ergebnisansichten",
     exact: true,
@@ -455,11 +492,9 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   await page
     .getByRole("button", { name: "Themen neu benennen", exact: true })
     .click();
+
   await expect(
-    page.getByText("Themennamen von OpenAI · gpt-4.1-mini"),
-  ).toBeVisible({ timeout: 30000 });
-  await expect(
-    page.locator(".documents-card tbody tr").first().locator("td").first(),
+    page.locator(".documents-card tbody tr").first().locator("td").nth(1),
   ).toContainText("Test-Themenname");
   expect(errors).toEqual([]);
 });

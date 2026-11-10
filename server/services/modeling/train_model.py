@@ -60,7 +60,7 @@ def train_bertopic_model(
             "Nach Tokenisierung und Stopwortfilter bleiben keine verwendbaren Begriffe übrig."
         ) from exc
 
-    report(5, "1/6: Berechne Embeddings …")
+    report(5, "Berechne Embeddings …")
     embeddings = np.asarray(
         embedding_model.encode(
             documents,
@@ -74,7 +74,7 @@ def train_bertopic_model(
         or not np.isfinite(embeddings).all()
     ):
         raise ValueError("Das Embedding-Modell hat ungültige oder unvollständige Vektoren erzeugt.")
-    report(20, "2/6: Konfiguriere UMAP …")
+    report(20, "Konfiguriere UMAP …")
     reducer = umap.UMAP(
         n_neighbors=config.n_neighbors,
         n_components=config.n_components,
@@ -83,19 +83,19 @@ def train_bertopic_model(
         random_state=config.random_state,
         n_jobs=1,
     )
-    report(30, "3/6: Konfiguriere HDBSCAN …")
+    report(30, "Konfiguriere HDBSCAN …")
     clusterer = hdbscan.HDBSCAN(
         min_cluster_size=config.min_cluster_size, metric="euclidean", prediction_data=True
     )
-    report(40, "4/6: Konfiguriere Vektorisierung …")
+    report(40, "Konfiguriere Vektorisierung …")
     ctfidf = ClassTfidfTransformer(reduce_frequent_words=True)
-    report(50, "5/6: Konfiguriere Repräsentationen …")
+    report(50, "Konfiguriere Repräsentationen …")
     representations = {}
     if "KeyBERT" in config.representation_models:
         representations["KeyBERT"] = KeyBERTInspired(top_n_words=config.top_n_words)
     if "MMR" in config.representation_models:
         representations["MMR"] = MaximalMarginalRelevance(top_n_words=config.top_n_words)
-    report(60, "6/6: Trainiere Modell …")
+    report(60, "Trainiere Modell …")
     model = BERTopic(
         embedding_model=embedding_model,
         top_n_words=config.top_n_words,

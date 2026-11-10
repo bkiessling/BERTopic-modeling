@@ -7,6 +7,7 @@ import {
   X,
   ChartScatter,
   ListTree,
+  Network,
 } from "lucide-react";
 import { TrainingProgress } from "./components/TrainingProgress";
 import { useWorkbench } from "./context/WorkbenchContext";
@@ -102,7 +103,7 @@ export default function App() {
             <div className="segmented">
               {[
                 { id: "topics", label: "Themenübersicht", icon: ListTree },
-                { id: "charts", label: "Visualisierungen", icon: ChartScatter },
+                { id: "charts", label: "Visualisierungen", icon: Network },
               ].map((item) => (
                 <button
                   key={item.id}

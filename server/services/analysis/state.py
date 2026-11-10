@@ -22,6 +22,7 @@ class AnalysisState:
     manual_topic_names: dict[int, str] = field(default_factory=dict)
     topics_needing_names: set[int] = field(default_factory=set)
     topic_merges: list[dict] = field(default_factory=list)
+    excluded_topics: set[int] = field(default_factory=set)
     topic_reductions: list[dict] = field(default_factory=list)
     names_need_refresh: bool = False
     trained_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -38,7 +39,14 @@ class AnalysisState:
     def set_topic_names(self, labels, model):
         self.topics_needing_names.difference_update(labels)
         self.names_need_refresh = bool(self.topics_needing_names)
-        self.topic_names = dict(labels)
+        self.topic_names = {
+            **{
+                topic: label
+                for topic, label in self.topic_names.items()
+                if topic in self.excluded_topics
+            },
+            **labels,
+        }
         self.naming_metadata = {
             "provider": "OpenAI",
             "model": model,
@@ -56,6 +64,7 @@ class AnalysisState:
         self.naming_metadata.clear()
 
     def reduce_outliers(self, threshold):
+        self.require_all_topics_visible()
         result = self.result
         original = list(result.model.topics_)
         if not reduce_outliers(result.model, result.documents, result.embeddings, threshold):
@@ -68,6 +77,7 @@ class AnalysisState:
         return True
 
     def restore_outliers(self):
+        self.require_all_topics_visible()
         if self.original_topics is None:
             return False
         restore_outliers(self.result.model, self.result.documents, self.original_topics)
@@ -79,6 +89,7 @@ class AnalysisState:
 
     def reduce_topics(self, target):
         """Merge semantically similar topics on a copy; preserve the result if merging fails."""
+        self.require_all_topics_visible()
         current = len(set(self.result.model.topics_) - {-1})
         if (
             isinstance(target, bool)
@@ -126,6 +137,7 @@ class AnalysisState:
         self.names_need_refresh = bool(self.topics_needing_names)
 
     def validate_merge(self, topics):
+        self.require_all_topics_visible()
         available = set(self.result.model.topics_) - {-1}
         if (
             not isinstance(topics, list)
@@ -191,3 +203,29 @@ class AnalysisState:
             self.naming_metadata = (
                 {**self.naming_metadata, "topic_count": len(names)} if names else {}
             )
+
+    def require_all_topics_visible(self):
+        if self.excluded_topics:
+            raise ValueError(
+                "Vor Strukturänderungen bitte ausgeschlossene Themen wieder einblenden."
+            )
+
+    def visible_indices(self):
+        return [
+            index
+            for index, topic in enumerate(self.result.model.topics_)
+            if topic not in self.excluded_topics
+        ]
+
+    def exclude_topics(self, topics):
+        available = set(self.result.model.topics_)
+        if (
+            not topics
+            or any(type(topic) is not int for topic in topics)
+            or not set(topics) <= available
+        ):
+            raise ValueError("Vorhandene Themen zum Ausschließen auswählen.")
+        selected = self.excluded_topics | set(topics)
+        if not available - selected:
+            raise ValueError("Mindestens ein Thema muss in der Auswertung bleiben.")
+        self.excluded_topics = selected

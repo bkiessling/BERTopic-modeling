@@ -137,21 +137,13 @@ export function ResultsPage() {
           <div className="preview-heading">
             <div>
               <h3>Themenübersicht</h3>
-              {result.naming.provider && (
-                <p>
-                  Themennamen von {result.naming.provider} ·{" "}
-                  {result.naming.model}
-                </p>
-              )}
-              {!!Object.keys(result.manual_topic_names || {}).length && (
-                <p>
-                  Manuell angepasste Themennamen:{" "}
-                  {Object.keys(result.manual_topic_names).length}.
-                </p>
-              )}
-              <p>Thema −1 heißt immer Outlier.</p>
             </div>
-            <span className="quiet-chip">{result.stats.topics} Themen</span>
+            <span className="quiet-chip">
+              {result.stats.topics} Themen
+              {result.excluded_topics?.length
+                ? ` · ${result.excluded_topics.length} ausgeschlossen`
+                : ""}
+            </span>
           </div>
           <DataTable rows={topics} />
         </section>

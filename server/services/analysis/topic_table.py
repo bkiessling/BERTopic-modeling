@@ -28,7 +28,7 @@ def build_topic_table(
     for col in ["KeyBERT", "MMR"]:
         if col not in tbl.columns:
             tbl[col] = ""
-    return tbl[["Themenname", "Thema", "Dokumente (n)", "Anteil (%)", "Keywords", "KeyBERT", "MMR"]]
+    return tbl[["Thema", "Themenname", "Dokumente (n)", "Anteil (%)", "Keywords", "KeyBERT", "MMR"]]
 
 
 def compute_topic_stats(topic_info: pd.DataFrame, docs: list[str]) -> tuple[int, float, int]:

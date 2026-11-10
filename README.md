@@ -135,7 +135,7 @@ Alle Texte der Hilfe-Buttons stehen in `src/content/help.de.json`. JSON wird dir
 
 „Voreinstellungen“ verwendet feste, von Textanzahl und durchschnittlicher Länge abhängige Heuristiken und optimiert kein Modell automatisch. Zurücksetzen ändert nur die Formularwerte, nicht bestehende Ergebnisse.
 
-Die erste Spalte beider Ergebnistabellen heißt **Themenname**. OpenAI-Namen erscheinen auch in Filtern, Diagrammen und Exporten. Ohne KI werden bis zu vier Keywords als lesbarer Name verwendet; Thema −1 heißt Outlier. Für OpenAI werden weiterhin maximal zehn Keywords pro Thema übertragen. Der Prompt wünscht präzise Titel mit normalerweise drei bis sechs Wörtern, bei Bedarf bis zu acht.
+Beide Ergebnistabellen zeigen zuerst **Thema** (Nummer), dann **Themenname**. OpenAI-Namen erscheinen auch in Filtern, Diagrammen und Exporten. Ohne KI werden bis zu vier Keywords als lesbarer Name verwendet; Thema −1 heißt Outlier. Für OpenAI werden weiterhin maximal zehn Keywords pro Thema übertragen. Der Prompt wünscht präzise Titel mit normalerweise drei bis sechs Wörtern, bei Bedarf bis zu acht.
 
 Unter „Ergebnisse verbessern“ lassen sich ähnliche Themen mit BERTopics agglomerativem Clustering der Themen-Embeddings auf eine gewünschte Anzahl reduzieren. Die Zahl schließt Outlier aus. Das trainierte Embedding-Modell wird dabei nicht neu trainiert. Die Operation arbeitet auf einer Kopie der veränderlichen Modellbestandteile; bei Fehlern bleiben bisherige Ergebnisse erhalten. Eine erfolgreich geänderte Themenstruktur verwirft alte Themennamen und die Outlier-Zurücksetzung für die vorherigen Themen-IDs. Die Reduktionshistorie wird im Export dokumentiert. „Themen neu benennen“ vergibt anschließend Namen für die aktualisierten Inhalte.
 
@@ -151,3 +151,13 @@ Unter **Ergebnisse verbessern** gibt es zusätzlich:
 **Outlier (−1)** heißen immer „Outlier“. Sie sind von manueller und KI-Benennung sowie gezielter Zusammenführung ausgeschlossen. Hilfe-Buttons an der Outlier-Kennzahl und der Outlier-Bearbeitung erklären die Bedeutung. Manuelle Namen und Zusammenführungen werden im Export dokumentiert; wie die übrigen Ergebnisse liegen sie bis zum Serverneustart im Arbeitsspeicher.
 
 Die blaue Schwalbe in `public/schwalbe.svg` steht vor dem App-Titel. Als Browser-Icon dient die weiße Variante `public/schwalbe-weiss.svg`. Blaue Aktionsbuttons verwenden einheitlich 200 × 48 Pixel (bei schmalen Containern höchstens deren Breite).
+
+## Ergebnisse eingrenzen
+
+„Ergebnisse verbessern“ ist in zwei Spalten mit drei Reihen angeordnet: Outlier-Zuordnung, automatische Reduktion, gezielte Zusammenführung, manuelle Namen, KI-Namen und Themenausschluss. Die Aktionsleisten eines Kartenpaars stehen auf gleicher Höhe; auf schmalen Bildschirmen werden die Karten untereinander angeordnet.
+
+**Themen ausschließen** blendet ausgewählte Themen aus Tabellen, Kennzahlen, Visualisierungen und Export aus. Modell und Texte bleiben erhalten. „Alle wieder einblenden“ stellt die vollständige Auswertung wieder her. Der Export dokumentiert ausgeschlossene Themen und die ursprüngliche Dokumentanzahl. Mindestens ein Thema muss sichtbar bleiben. Vor Änderungen an der Themenstruktur müssen ausgeschlossene Themen wieder eingeblendet werden, damit IDs nicht unbemerkt ihre Bedeutung wechseln.
+
+Das Netzwerk nutzt eigene Farben pro Themen-ID anstelle einer wiederholten Sechserpalette. Outlier sind grau; Umbenennen verändert die Farbe nicht. Bei sehr vielen Themen können Farben trotz unterschiedlicher Farbwerte ähnlich wirken; Legende und Hover nennen jeweils die konkrete Themen-ID.
+
+Die Fortschrittsanzeige verwendet benannte Phasen und Prozentmarken statt einer zusätzlichen „6/6“-Zählung. Prozentwerte markieren Arbeitsschritte und stellen keine verbleibende Zeit dar.
