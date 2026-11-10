@@ -1,6 +1,6 @@
 # Topic Modeling · #NDRfragt Themenfinder
 
-Lokale Themenanalyse mit **React/TypeScript**, **FastAPI** und **BERTopic**. Texte importieren, Modelle konfigurieren und Ergebnisse untersuchen – ohne Sidebar. Die aktuelle Anwendung liegt im Branch `feature/react-workbench`.
+Lokale Themenanalyse mit **React/TypeScript**, **FastAPI** und **BERTopic**. Texte importieren, Modelle konfigurieren und Ergebnisse untersuchen – ohne Sidebar. Die aktuelle Anwendung liegt im Branch `dev`. Die weitere Entwicklung erfolgt direkt dort; neue Feature-Branches werden nur bei ausdrücklichem Bedarf angelegt.
 
 ![Modellierung mit Parameterkarten](docs/screenshots/react-modeling.png)
 
@@ -10,7 +10,7 @@ Voraussetzungen: **Python 3.11 oder 3.12** und **Node.js 22 oder neuer**. Eine e
 
 ```bash
 git fetch origin
-git switch feature/react-workbench
+git switch dev
 git pull --ff-only
 conda activate bertopic-dev
 python -m pip install -r requirements.txt
@@ -20,7 +20,7 @@ npm run build
 python -m server
 ```
 
-Falls die Conda-Umgebung noch nicht existiert: `conda create -n bertopic-dev python=3.11 pip`, dann aktivieren. Falls der Branch nur remote existiert: `git switch --track origin/feature/react-workbench`.
+Falls die Conda-Umgebung noch nicht existiert: `conda create -n bertopic-dev python=3.11 pip`, dann aktivieren. Falls der Branch nur remote existiert: `git switch --track origin/dev`.
 
 Die App läuft auf deinem Rechner unter `http://127.0.0.1:8000`. Ein Python-Prozess liefert API und gebautes Frontend aus; Node ist im normalen Betrieb nicht nötig. `./scripts/start-web.sh` ist ein kurzer Alias für denselben Start. Nach Frontend-Änderungen erneut `npm run build` ausführen. Den Server nach Python-/Konfigurationsänderungen neu starten. Bestehende Modelle im RAM gehen dabei verloren.
 
