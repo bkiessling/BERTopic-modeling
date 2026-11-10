@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from backend.migrate import migrate_legacy_secrets
+from server.migrate import migrate_legacy_secrets
 
 
 class MigrationTests(unittest.TestCase):

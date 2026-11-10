@@ -5,7 +5,7 @@ import numpy as np
 from bertopic.backend import BaseEmbedder
 import uvicorn
 
-backend = importlib.import_module("backend.routes.modeling")
+backend = importlib.import_module("server.routes.modeling")
 
 
 class OfflineEncoder(BaseEmbedder):
@@ -21,10 +21,10 @@ class OfflineEncoder(BaseEmbedder):
 
 
 backend.encoder = lambda name: OfflineEncoder()
-from backend.app import app
+from server.app import app
 
 backend.key_binding = lambda: ("", "")
-importlib.import_module("backend.routes.system").key_binding = lambda: ("", "")
-importlib.import_module("backend.routes.results").key_binding = lambda: ("", "")
+importlib.import_module("server.routes.system").key_binding = lambda: ("", "")
+importlib.import_module("server.routes.results").key_binding = lambda: ("", "")
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")

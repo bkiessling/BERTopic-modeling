@@ -13,11 +13,11 @@ import numpy as np
 import pandas as pd
 from bertopic.backend import BaseEmbedder
 from fastapi.testclient import TestClient
-from backend.app import app
-from backend.runtime import spaces
-from backend.settings import key_binding
-from modules.modeling.configuration import TrainingConfig, ENGLISH_MODEL
-from modules.modeling.train_model import TrainingResult
+from server.app import app
+from server.runtime import spaces
+from server.settings import key_binding
+from server.services.modeling.configuration import TrainingConfig, ENGLISH_MODEL
+from server.services.modeling.train_model import TrainingResult
 
 
 class OfflineEncoder(BaseEmbedder):
@@ -98,7 +98,7 @@ class WebApiTests(unittest.TestCase):
 
     def test_credentials_stay_server_side(self):
         with patch(
-            "backend.routes.system.key_binding",
+            "server.routes.system.key_binding",
             return_value=("test-only-credential", "test-source"),
         ):
             value = self.client.get("/api/capabilities")
@@ -121,8 +121,8 @@ class WebApiTests(unittest.TestCase):
                 'BERTOPIC_OPENAI_API_KEY = "global-test-key"'
             )
             with (
-                patch("backend.settings.ROOT", project),
-                patch("backend.settings.Path.home", return_value=home),
+                patch("server.settings.ROOT", project),
+                patch("server.settings.Path.home", return_value=home),
                 patch.dict(os.environ, {"BERTOPIC_OPENAI_API_KEY": "environment-test-key"}),
             ):
                 self.assertEqual(key_binding()[0], "local-test-key")
@@ -151,8 +151,8 @@ class WebApiTests(unittest.TestCase):
             return TrainingResult(model, info, np.ones((len(documents), 3)), documents, config)
 
         with (
-            patch("backend.routes.modeling.encoder", return_value=Mock()),
-            patch("backend.routes.modeling.train_bertopic_model", side_effect=train_result),
+            patch("server.routes.modeling.encoder", return_value=Mock()),
+            patch("server.routes.modeling.train_bertopic_model", side_effect=train_result),
         ):
             start = self.client.post("/api/train", headers=self.headers, json={"params": params})
             self.assertEqual(start.status_code, 200, start.text)
@@ -189,7 +189,7 @@ class WebApiTests(unittest.TestCase):
             max_df=1.0,
             representation_models=(),
         ).to_dict()
-        with patch("backend.routes.modeling.encoder", return_value=OfflineEncoder()):
+        with patch("server.routes.modeling.encoder", return_value=OfflineEncoder()):
             start = self.client.post("/api/train", headers=self.headers, json={"params": params})
             self.assertEqual(start.status_code, 200, start.text)
             self.assertEqual(start.json()["status"], "queued")
@@ -210,7 +210,7 @@ class WebApiTests(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
             self.assertEqual(len(json.loads(archive.read("documents.json"))), 60)
         with patch(
-            "backend.routes.modeling.encoder", side_effect=ValueError("test encoder failure")
+            "server.routes.modeling.encoder", side_effect=ValueError("test encoder failure")
         ):
             self.client.post("/api/train", headers=self.headers, json={"params": params})
             self.assertEqual(self.wait()["status"], "failed")

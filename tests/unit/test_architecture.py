@@ -7,7 +7,7 @@ import unittest
 
 class ArchitectureTests(unittest.TestCase):
     def test_domain_modules_do_not_import_web_frameworks(self):
-        root = Path(__file__).resolve().parents[2] / "modules"
+        root = Path(__file__).resolve().parents[2] / "server" / "services"
         for path in root.rglob("*.py"):
             with self.subTest(module=str(path.relative_to(root))):
                 tree = ast.parse(path.read_text())

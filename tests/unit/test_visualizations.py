@@ -3,8 +3,8 @@
 import unittest
 import numpy as np
 import pandas as pd
-from modules.viz.topic_similarity import plot_topic_similarity
-from modules.viz.topic_network import plot_topic_network
+from server.services.viz.topic_similarity import plot_topic_similarity
+from server.services.viz.topic_network import plot_topic_network
 
 
 class TopicModel:

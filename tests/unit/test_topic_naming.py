@@ -7,15 +7,15 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pandas as pd
 import requests
-from modules.analysis.topic_naming import (
+from server.services.analysis.topic_naming import (
     name_topics,
     topic_keywords,
     TopicNamingError,
     check_model_access,
 )
-from modules.modeling.configuration import TrainingConfig, ENGLISH_MODEL
-from modules.modeling.train_model import TrainingResult
-from modules.analysis.state import AnalysisState
+from server.services.modeling.configuration import TrainingConfig, ENGLISH_MODEL
+from server.services.modeling.train_model import TrainingResult
+from server.services.analysis.state import AnalysisState
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -48,7 +48,7 @@ class TopicNamingTests(unittest.TestCase):
         model.get_topic.return_value = [("solar", 0.5), ("strom", 0.2)]
         keywords = topic_keywords(model)
         with patch(
-            "modules.analysis.topic_naming.requests.post",
+            "server.services.analysis.topic_naming.requests.post",
             return_value=response([{"topic_id": 0, "label": "Erneuerbare Energie"}]),
         ) as post:
             self.assertEqual(
@@ -64,7 +64,7 @@ class TopicNamingTests(unittest.TestCase):
         self.assertEqual(post.call_args.args[0], "https://api.openai.com/v1/responses")
 
     def test_missing_key_and_no_topics_never_send_request(self):
-        with patch("modules.analysis.topic_naming.requests.post") as post:
+        with patch("server.services.analysis.topic_naming.requests.post") as post:
             with self.assertRaises(TopicNamingError):
                 name_topics({0: ["solar"]}, "Deutsch", "")
             self.assertEqual(name_topics({}, "Deutsch", "test-only-key"), {})
@@ -75,14 +75,16 @@ class TopicNamingTests(unittest.TestCase):
             with (
                 self.subTest(status=status),
                 patch(
-                    "modules.analysis.topic_naming.requests.post", return_value=response([], status)
+                    "server.services.analysis.topic_naming.requests.post",
+                    return_value=response([], status),
                 ),
             ):
                 with self.assertRaises(TopicNamingError) as caught:
                     name_topics({0: ["solar"]}, "Deutsch", "test-only-key")
                 self.assertNotIn("test-only-key", str(caught.exception))
         with patch(
-            "modules.analysis.topic_naming.requests.post", side_effect=requests.ConnectionError()
+            "server.services.analysis.topic_naming.requests.post",
+            side_effect=requests.ConnectionError(),
         ):
             with self.assertRaises(TopicNamingError):
                 name_topics({0: ["solar"]}, "Deutsch", "test-only-key")
@@ -97,7 +99,10 @@ class TopicNamingTests(unittest.TestCase):
         for rows in invalid:
             with (
                 self.subTest(rows=rows),
-                patch("modules.analysis.topic_naming.requests.post", return_value=response(rows)),
+                patch(
+                    "server.services.analysis.topic_naming.requests.post",
+                    return_value=response(rows),
+                ),
             ):
                 with self.assertRaises(TopicNamingError):
                     name_topics({0: ["solar"]}, "Deutsch", "test-only-key")
@@ -108,7 +113,9 @@ class TopicNamingTests(unittest.TestCase):
             response([{"topic_id": i, "label": f"Thema {i}"} for i in range(20)]),
             response([{"topic_id": 20, "label": "Letztes Thema"}]),
         ]
-        with patch("modules.analysis.topic_naming.requests.post", side_effect=responses) as post:
+        with patch(
+            "server.services.analysis.topic_naming.requests.post", side_effect=responses
+        ) as post:
             labels = name_topics(keywords, "Deutsch", "test-only-key")
         self.assertEqual(len(labels), 21)
         self.assertEqual(post.call_count, 2)
@@ -116,15 +123,15 @@ class TopicNamingTests(unittest.TestCase):
     def test_model_access_check_does_not_generate_or_send_prompts(self):
         reply = Mock(status_code=200, json=lambda: {"id": "gpt-4.1-mini", "object": "model"})
         with (
-            patch("modules.analysis.topic_naming.requests.get", return_value=reply) as get,
-            patch("modules.analysis.topic_naming.requests.post") as post,
+            patch("server.services.analysis.topic_naming.requests.get", return_value=reply) as get,
+            patch("server.services.analysis.topic_naming.requests.post") as post,
         ):
             check_model_access("test-only-key", "gpt-4.1-mini")
             post.assert_not_called()
             self.assertEqual(get.call_args.args[0], "https://api.openai.com/v1/models/gpt-4.1-mini")
             self.assertNotIn("json", get.call_args.kwargs)
         with patch(
-            "modules.analysis.topic_naming.requests.get", return_value=Mock(status_code=401)
+            "server.services.analysis.topic_naming.requests.get", return_value=Mock(status_code=401)
         ):
             with self.assertRaisesRegex(TopicNamingError, "HTTP 401"):
                 check_model_access("test-only-key", "gpt-4.1-mini")

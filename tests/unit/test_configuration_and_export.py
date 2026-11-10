@@ -8,15 +8,15 @@ from dataclasses import replace
 from unittest.mock import Mock
 import pandas as pd
 from pathlib import Path
-from modules.modeling.configuration import (
+from server.services.modeling.configuration import (
     TrainingConfig,
     get_default_params,
     MULTILINGUAL_MODEL,
     ENGLISH_MODEL,
 )
-from modules.modeling.train_model import train_bertopic_model
-from modules.analysis.export import build_result_archive
-from modules.modeling.encoders import build_encoder
+from server.services.modeling.train_model import train_bertopic_model
+from server.services.analysis.export import build_result_archive
+from server.services.modeling.encoders import build_encoder
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,7 +77,7 @@ class ConfigurationTests(unittest.TestCase):
         ):
             with (
                 self.subTest(model=name),
-                patch("modules.modeling.encoders.SentenceTransformer") as loader,
+                patch("server.services.modeling.encoders.SentenceTransformer") as loader,
             ):
                 build_encoder(name)
                 options = loader.call_args.kwargs
