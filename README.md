@@ -1,4 +1,4 @@
-# BERTopic · #NDRfragt Topic Modeling
+# Topic Modeling · #NDRfragt Themenfinder
 
 Lokale Themenanalyse mit **React/TypeScript**, **FastAPI** und **BERTopic**. Texte importieren, Modelle konfigurieren und Ergebnisse untersuchen – ohne Sidebar. Die aktuelle Anwendung liegt im Branch `feature/react-workbench`.
 
@@ -149,3 +149,5 @@ Unter **Ergebnisse verbessern** gibt es zusätzlich:
 - **Themennamen bearbeiten:** Thema auswählen, Namen mit bis zu 120 Zeichen eingeben und speichern. Dafür ist kein API-Key erforderlich. Der Name gilt in Tabellen, Filtern, Diagrammen und Exporten. Manuelle Namen haben Vorrang vor KI-Namen und bleiben bei erneuter KI-Benennung erhalten. Automatische Themenreduzierung und Outlier-Änderungen verwerfen hingegen Namen, da Inhalte und Zuordnungen sich ändern.
 
 **Outlier (−1)** heißen immer „Outlier“. Sie sind von manueller und KI-Benennung sowie gezielter Zusammenführung ausgeschlossen. Hilfe-Buttons an der Outlier-Kennzahl und der Outlier-Bearbeitung erklären die Bedeutung. Manuelle Namen und Zusammenführungen werden im Export dokumentiert; wie die übrigen Ergebnisse liegen sie bis zum Serverneustart im Arbeitsspeicher.
+
+Das Laubenvogel-SVG in `public/laubenvogel.svg` wird als Browser-Icon und vor dem App-Titel verwendet.

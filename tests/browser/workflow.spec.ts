@@ -29,10 +29,19 @@ test("clean desktop and mobile import, connection dialog", async ({
   ).toBeDisabled();
   await expect(
     page.getByRole("heading", {
-      name: "#NDRfragt Topic Modeling",
+      name: "#NDRfragt Themenfinder",
       exact: true,
     }),
   ).toBeVisible();
+  await expect(page).toHaveTitle("#NDRfragt Themenfinder");
+  await expect(page.locator("h1 img")).toHaveAttribute(
+    "src",
+    "/laubenvogel.svg",
+  );
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+    "href",
+    "/laubenvogel.svg",
+  );
   await expect(
     page.getByText("BERTopic workspace", { exact: true }),
   ).toHaveCount(0);
@@ -41,7 +50,7 @@ test("clean desktop and mobile import, connection dialog", async ({
   expect(Math.abs(upload!.width - selection!.width)).toBeLessThan(1);
   expect(selection!.y).toBeGreaterThan(upload!.y + upload!.height);
   await expect(
-    page.getByRole("link", { name: "BERTopic", exact: true }),
+    page.getByRole("link", { name: "Topic Modeling", exact: true }),
   ).toBeVisible();
   await expect(page.locator("footer")).toHaveCount(0);
   const nav = await page
@@ -341,7 +350,7 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Ergebnisse exportieren" }).click();
   expect((await downloadPromise).suggestedFilename()).toBe(
-    "bertopic-results.zip",
+    "topic-modeling-results.zip",
   );
   await page.reload();
   await expect(page.getByRole("heading", { name: "Ergebnisse" })).toBeVisible();

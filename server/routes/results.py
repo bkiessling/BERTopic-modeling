@@ -334,5 +334,5 @@ def export(x_workspace_id: Annotated[str, Header()]):
     return Response(
         content,
         media_type="application/zip",
-        headers={"Content-Disposition": 'attachment; filename="bertopic-results.zip"'},
+        headers={"Content-Disposition": 'attachment; filename="topic-modeling-results.zip"'},
     )

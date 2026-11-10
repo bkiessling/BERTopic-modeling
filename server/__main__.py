@@ -8,7 +8,7 @@ from server.migrate import migrate_legacy_secrets
 
 
 def main():
-    parser = argparse.ArgumentParser(description="BERTopic – local topic modeling")
+    parser = argparse.ArgumentParser(description="Topic Modeling – lokale Themenanalyse")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:

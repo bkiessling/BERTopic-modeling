@@ -338,7 +338,7 @@ function useWorkbenchState() {
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
       link.href = url;
-      link.download = "bertopic-results.zip";
+      link.download = "topic-modeling-results.zip";
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });

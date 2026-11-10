@@ -49,7 +49,7 @@ export default function App() {
             setStep(0);
           }}
         >
-          BERTopic
+          Topic Modeling
         </a>
         <button className="connection" onClick={() => setSettings(true)}>
           <span className={token ? "status-dot" : "status-dot offline"} />
@@ -60,7 +60,15 @@ export default function App() {
       <main>
         <div className="workspace-heading">
           <div>
-            <h1>#NDRfragt Topic Modeling</h1>
+            <h1 className="app-title">
+              <img
+                className="app-mascot"
+                src="/laubenvogel.svg"
+                alt=""
+                aria-hidden="true"
+              />
+              <span>#NDRfragt Themenfinder</span>
+            </h1>
           </div>
         </div>
         <nav className="step-nav" aria-label="Analyseschritte">

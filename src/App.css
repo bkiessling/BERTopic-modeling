@@ -1680,3 +1680,24 @@ progress::-webkit-progress-value {
     font-size: 11px;
   }
 }
+
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.app-mascot {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+@media (max-width: 540px) {
+  .app-title {
+    gap: 8px;
+  }
+  .app-mascot {
+    width: 34px;
+    height: 34px;
+  }
+}
