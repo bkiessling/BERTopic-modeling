@@ -30,6 +30,11 @@ class SmallModel:
         if self.fail:
             raise ValueError("reduction failed after mutation")
 
+    def merge_topics(self, documents, topics_to_merge):
+        self.topics_ = [-1, 1, 1, 0]  # BERTopic may renumber the untouched topic.
+        if self.fail:
+            raise ValueError("merge failed after mutation")
+
 
 class TopicReductionTests(unittest.TestCase):
     def state(self, fail=False):
@@ -75,3 +80,51 @@ class TopicReductionTests(unittest.TestCase):
             with self.subTest(target=target), self.assertRaises(ValueError):
                 state.reduce_topics(target)
         self.assertEqual(state.result.model.topics_, [-1, 0, 1, 2])
+
+
+class TopicEditingTests(unittest.TestCase):
+    state = TopicReductionTests.state
+
+    def test_manual_merge_preserves_other_names_after_renumbering(self):
+        state = self.state()
+        state.set_manual_topic_name(2, "Unverändertes Thema")
+        state.merge_topics([0, 1])
+        self.assertEqual(state.result.model.topics_, [-1, 1, 1, 0])
+        self.assertEqual(state.manual_topic_names, {0: "Unverändertes Thema"})
+        self.assertEqual(state.topic_names, {0: "Name C"})
+        names = state.named_topic_info().set_index("Topic").CustomName.to_dict()
+        self.assertEqual(names[-1], "Outlier")
+        self.assertEqual(names[0], "Unverändertes Thema")
+        self.assertTrue(state.names_need_refresh)
+        state.set_manual_topic_name(1, "Neue gemeinsame Gruppe")
+        self.assertFalse(state.names_need_refresh)
+        state.set_topic_names({0: "KI-Name A", 1: "KI-Name B"}, "test-model")
+        self.assertEqual(
+            state.named_topic_info().set_index("Topic").loc[1, "CustomName"],
+            "Neue gemeinsame Gruppe",
+        )
+        self.assertIsNone(state.original_topics)
+
+    def test_failed_merge_preserves_model_and_names(self):
+        state = self.state(fail=True)
+        state.set_manual_topic_name(2, "Manuell")
+        original = state.result.model
+        with self.assertRaisesRegex(ValueError, "merge failed"):
+            state.merge_topics([0, 1])
+        self.assertIs(state.result.model, original)
+        self.assertEqual(original.topics_, [-1, 0, 1, 2])
+        self.assertEqual(state.manual_topic_names, {2: "Manuell"})
+        self.assertEqual(state.topic_merges, [])
+
+    def test_invalid_merge_and_outlier_names_are_rejected(self):
+        state = self.state()
+        for selection in ([0], [0, 0], [-1, 0], [0, 99], [True, 1]):
+            with self.subTest(selection=selection), self.assertRaises(ValueError):
+                state.merge_topics(selection)
+        for topic, label in ((-1, "Kein Outlier"), (99, "Fehlt"), (0, "  "), (0, "x" * 121)):
+            with self.subTest(topic=topic), self.assertRaises(ValueError):
+                state.set_manual_topic_name(topic, label)
+        state.topic_names[-1] = "Ignorierter Name"
+        self.assertEqual(
+            state.named_topic_info().set_index("Topic").loc[-1, "CustomName"], "Outlier"
+        )

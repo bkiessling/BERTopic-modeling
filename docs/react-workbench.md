@@ -33,3 +33,5 @@ Die Importvorschau zeigt unmittelbar nach Upload drei Originalzeilen aller Spalt
 Die Hilfe-Texte sind zentral in `src/content/help.de.json` konfigurierbar. Voreinstellungen erklärt die Heuristiken; der Reset ist ein ausgeschriebener Button. Ergebnisansichten verwenden „Themenname“ als erste Spalte und denselben Namen in Filtern und Diagrammen.
 
 „Ergebnisse verbessern“ bietet neben Outlier-Zuordnung die Reduktion ähnlicher Themen. Zielanzahlen schließen Outlier aus. Nach Strukturänderungen lassen sich Namen in der kompakten Sektion „Themen neu benennen“ aktualisieren.
+
+Die Analyse-Tabs stehen direkt unter der Hauptnavigation, zentriert mit eigenen Icons. Unter „Ergebnisse verbessern“ können ausgewählte Themen gezielt zusammengeführt und Themennamen ohne API bearbeitet werden. Andere Namen überstehen das Umnummerieren von Themen-IDs bei einer Zusammenführung. Manuelle Namen übersteuern KI-Namen. Outlier behalten zwingend ihren festen Namen; eine zentrale Hilfe erklärt sie.

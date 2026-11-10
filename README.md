@@ -138,3 +138,14 @@ Alle Texte der Hilfe-Buttons stehen in `src/content/help.de.json`. JSON wird dir
 Die erste Spalte beider Ergebnistabellen heißt **Themenname**. OpenAI-Namen erscheinen auch in Filtern, Diagrammen und Exporten. Ohne KI werden bis zu vier Keywords als lesbarer Name verwendet; Thema −1 heißt Outlier. Für OpenAI werden weiterhin maximal zehn Keywords pro Thema übertragen. Der Prompt wünscht präzise Titel mit normalerweise drei bis sechs Wörtern, bei Bedarf bis zu acht.
 
 Unter „Ergebnisse verbessern“ lassen sich ähnliche Themen mit BERTopics agglomerativem Clustering der Themen-Embeddings auf eine gewünschte Anzahl reduzieren. Die Zahl schließt Outlier aus. Das trainierte Embedding-Modell wird dabei nicht neu trainiert. Die Operation arbeitet auf einer Kopie der veränderlichen Modellbestandteile; bei Fehlern bleiben bisherige Ergebnisse erhalten. Eine erfolgreich geänderte Themenstruktur verwirft alte Themennamen und die Outlier-Zurücksetzung für die vorherigen Themen-IDs. Die Reduktionshistorie wird im Export dokumentiert. „Themen neu benennen“ vergibt anschließend Namen für die aktualisierten Inhalte.
+
+## Themen gezielt bearbeiten
+
+Die Analyseansichten **Themenübersicht** und **Visualisierungen** stehen zentriert mit eigenen Icons direkt unter der Hauptnavigation. Die Texttabelle bleibt in beiden Ansichten verfügbar.
+
+Unter **Ergebnisse verbessern** gibt es zusätzlich:
+
+- **Themen gezielt zusammenführen:** Mindestens zwei Themen im Multiselect auswählen. Nur diese Themen werden zu einer Gruppe zusammengeführt. Andere Namen bleiben erhalten, auch wenn BERTopic die Themen-IDs neu nummeriert. Die neue Gruppe lässt sich danach direkt benennen; die bisherige Outlier-Zurücksetzung entfällt. Fehlgeschlagene Zusammenführungen verändern das Modell nicht.
+- **Themennamen bearbeiten:** Thema auswählen, Namen mit bis zu 120 Zeichen eingeben und speichern. Dafür ist kein API-Key erforderlich. Der Name gilt in Tabellen, Filtern, Diagrammen und Exporten. Manuelle Namen haben Vorrang vor KI-Namen und bleiben bei erneuter KI-Benennung erhalten. Automatische Themenreduzierung und Outlier-Änderungen verwerfen hingegen Namen, da Inhalte und Zuordnungen sich ändern.
+
+**Outlier (−1)** heißen immer „Outlier“. Sie sind von manueller und KI-Benennung sowie gezielter Zusammenführung ausgeschlossen. Hilfe-Buttons an der Outlier-Kennzahl und der Outlier-Bearbeitung erklären die Bedeutung. Manuelle Namen und Zusammenführungen werden im Export dokumentiert; wie die übrigen Ergebnisse liegen sie bis zum Serverneustart im Arbeitsspeicher.

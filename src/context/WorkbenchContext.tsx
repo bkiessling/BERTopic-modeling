@@ -55,18 +55,20 @@ function useWorkbenchState() {
     initializing = useRef<Promise<Row> | null>(null);
   const active = ["queued", "running"].includes(job.status),
     blocked = active || !!busy;
-  const loadResults = useCallback(async (id: string) => {
+  const loadResults = useCallback(async (id: string, resetView = true) => {
     const value = await api("/results", id);
     setResult(value);
-    setPage(0);
-    setDocumentTopic("");
-    setDocuments(null);
-    setSelectedTopics(
-      (value.topics as Row[])
-        .filter((t) => t.Thema !== -1)
-        .slice(0, 4)
-        .map((t) => t.Thema),
-    );
+    if (resetView) {
+      setPage(0);
+      setDocumentTopic("");
+      setDocuments(null);
+      setSelectedTopics(
+        (value.topics as Row[])
+          .filter((t) => t.Thema !== -1)
+          .slice(0, 4)
+          .map((t) => t.Thema),
+      );
+    }
     setRevision((v) => v + 1);
     return value;
   }, []);
@@ -320,6 +322,13 @@ function useWorkbenchState() {
       setNotice("");
     });
   }
+  async function renameTopic(topic: number, label: string) {
+    await perform("label", async () => {
+      await api("/topics/label", token, post({ topic, label }));
+      await loadResults(token, false);
+      setNotice("Themenname gespeichert.");
+    });
+  }
   async function download() {
     await perform("export", async () => {
       const response = await fetch("/api/export", {
@@ -437,6 +446,7 @@ function useWorkbenchState() {
     change,
     startJob,
     download,
+    renameTopic,
     modelOptions,
     topics,
     keywords,

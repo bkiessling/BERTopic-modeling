@@ -6,6 +6,7 @@ import {
   UploadCloud,
   X,
   ChartScatter,
+  ListTree,
 } from "lucide-react";
 import { TrainingProgress } from "./components/TrainingProgress";
 import { useWorkbench } from "./context/WorkbenchContext";
@@ -23,6 +24,8 @@ export default function App() {
     token,
     step,
     setStep,
+    resultTab,
+    setResultTab,
     cleaned,
     params,
     result,
@@ -86,6 +89,27 @@ export default function App() {
             );
           })}
         </nav>
+        {step === 2 && result && (
+          <nav className="analysis-nav" aria-label="Ergebnisansichten">
+            <div className="segmented">
+              {[
+                { id: "topics", label: "Themenübersicht", icon: ListTree },
+                { id: "charts", label: "Visualisierungen", icon: ChartScatter },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  className={resultTab === item.id ? "selected" : ""}
+                  aria-current={resultTab === item.id ? "page" : undefined}
+                  onClick={() => setResultTab(item.id)}
+                >
+                  <item.icon size={17} aria-hidden="true" />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </nav>
+        )}
+
         {error && (
           <div className="alert error" role="alert">
             <span>{error}</span>

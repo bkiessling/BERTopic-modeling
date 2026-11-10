@@ -346,6 +346,82 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   await page.reload();
   await expect(page.getByRole("heading", { name: "Ergebnisse" })).toBeVisible();
   await page.getByText("Ergebnisse verbessern", { exact: true }).click();
+  const subnav = page.getByRole("navigation", {
+    name: "Ergebnisansichten",
+    exact: true,
+  });
+  const mainnav = await page
+    .getByRole("navigation", { name: "Analyseschritte", exact: true })
+    .boundingBox();
+  const subBox = await subnav.boundingBox();
+  const resultsHeading = await page
+    .getByRole("heading", { name: "Ergebnisse", exact: true })
+    .boundingBox();
+  expect(subBox!.y).toBeGreaterThan(mainnav!.y + mainnav!.height);
+  expect(subBox!.y + subBox!.height).toBeLessThan(resultsHeading!.y);
+  const firstTab = await subnav
+    .getByRole("button", { name: "Themenübersicht", exact: true })
+    .boundingBox();
+  const lastTab = await subnav
+    .getByRole("button", { name: "Visualisierungen", exact: true })
+    .boundingBox();
+  expect(
+    Math.abs(
+      (firstTab!.x + lastTab!.x + lastTab!.width) / 2 -
+        (subBox!.x + subBox!.width / 2),
+    ),
+  ).toBeLessThan(1);
+  await expect(subnav.locator("button svg")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Hilfe zu Outlier", exact: true })
+    .click();
+  await expect(page.getByRole("note")).toContainText("keinem stabilen Thema");
+  await page
+    .getByRole("button", { name: "Hilfe schließen", exact: true })
+    .click();
+  const merge = page.getByRole("button", {
+    name: "Themen zum Zusammenführen",
+    exact: true,
+  });
+  await merge.click();
+  const menu = page.getByRole("group", {
+    name: "Themen auswählen",
+    exact: true,
+  });
+  await menu.locator('input[type="checkbox"]').nth(0).check();
+  await menu.locator('input[type="checkbox"]').nth(1).check();
+  await page.keyboard.press("Escape");
+  const beforeCount = Number(
+    await page.locator(".stat-card").first().locator("strong").innerText(),
+  );
+  await page
+    .getByRole("button", {
+      name: "Ausgewählte Themen zusammenführen",
+      exact: true,
+    })
+    .click();
+  await expect(page.locator(".stat-card").first().locator("strong")).toHaveText(
+    String(beforeCount - 1),
+    { timeout: 30000 },
+  );
+  await page
+    .getByLabel("Thema umbenennen", { exact: true })
+    .selectOption({ index: 1 });
+  await page
+    .getByLabel("Neuer Themenname", { exact: true })
+    .fill("Mein manuell bearbeitetes Thema");
+  await page
+    .getByRole("button", { name: "Themenname speichern", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Nach Thema filtern", { exact: true }),
+  ).toContainText("Mein manuell bearbeitetes Thema");
+  await page.reload();
+  await expect(
+    page.getByLabel("Nach Thema filtern", { exact: true }),
+  ).toContainText("Mein manuell bearbeitetes Thema");
+  await page.getByText("Ergebnisse verbessern", { exact: true }).click();
+
   await page.getByLabel("Zielanzahl Themen", { exact: true }).fill("1");
   await page
     .getByRole("button", { name: "Themen zusammenfassen", exact: true })

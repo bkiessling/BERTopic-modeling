@@ -19,6 +19,9 @@ class AnalysisState:
     outlier_thresholds: list[float] = field(default_factory=list)
     topic_names: dict[int, str] = field(default_factory=dict)
     naming_metadata: dict = field(default_factory=dict)
+    manual_topic_names: dict[int, str] = field(default_factory=dict)
+    topics_needing_names: set[int] = field(default_factory=set)
+    topic_merges: list[dict] = field(default_factory=list)
     topic_reductions: list[dict] = field(default_factory=list)
     names_need_refresh: bool = False
     trained_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -28,10 +31,13 @@ class AnalysisState:
             raise ValueError("IDs und Dokumente müssen gleich lang sein.")
 
     def named_topic_info(self):
-        return with_topic_names(self.result.topic_info, self.topic_names)
+        return with_topic_names(
+            self.result.topic_info, {**self.topic_names, **self.manual_topic_names}
+        )
 
     def set_topic_names(self, labels, model):
-        self.names_need_refresh = False
+        self.topics_needing_names.difference_update(labels)
+        self.names_need_refresh = bool(self.topics_needing_names)
         self.topic_names = dict(labels)
         self.naming_metadata = {
             "provider": "OpenAI",
@@ -42,7 +48,10 @@ class AnalysisState:
         }
 
     def clear_topic_names(self):
-        self.names_need_refresh = self.names_need_refresh or bool(self.topic_names)
+        if self.topic_names or self.manual_topic_names or self.names_need_refresh:
+            self.topics_needing_names = set(self.result.model.topics_) - {-1}
+        self.names_need_refresh = bool(self.topics_needing_names)
+        self.manual_topic_names.clear()
         self.topic_names.clear()
         self.naming_metadata.clear()
 
@@ -78,12 +87,7 @@ class AnalysisState:
         ):
             raise ValueError(f"Die Zielanzahl muss zwischen 1 und {max(1, current - 1)} liegen.")
         model = self.result.model
-        # These fitted objects are read-only during reduce_topics. Avoid copying encoder weights.
-        shared = [
-            getattr(model, name, None)
-            for name in ("embedding_model", "umap_model", "hdbscan_model")
-        ]
-        candidate = deepcopy(model, {id(value): value for value in shared if value is not None})
+        candidate = self._copy_model()
         candidate.reduce_topics(
             self.result.documents, nr_topics=int(target) + int(-1 in model.topics_)
         )
@@ -96,3 +100,94 @@ class AnalysisState:
         # Saved outlier assignments refer to the old topic IDs and cannot be restored safely.
         self.original_topics = None
         self.clear_topic_names()
+
+    def _copy_model(self):
+        model = self.result.model
+        # Fitted encoder/reducers are read-only during structural editing.
+        shared = [
+            getattr(model, name, None)
+            for name in ("embedding_model", "umap_model", "hdbscan_model")
+        ]
+        return deepcopy(model, {id(value): value for value in shared if value is not None})
+
+    def set_manual_topic_name(self, topic, label):
+        if (
+            isinstance(topic, bool)
+            or not isinstance(topic, Integral)
+            or topic == -1
+            or topic not in self.result.model.topics_
+        ):
+            raise ValueError("Ein vorhandenes Thema auswählen. Outlier haben einen festen Namen.")
+        label = label.strip() if isinstance(label, str) else ""
+        if not 1 <= len(label) <= 120:
+            raise ValueError("Der Themenname muss 1 bis 120 Zeichen enthalten.")
+        self.manual_topic_names[int(topic)] = label
+        self.topics_needing_names.discard(int(topic))
+        self.names_need_refresh = bool(self.topics_needing_names)
+
+    def validate_merge(self, topics):
+        available = set(self.result.model.topics_) - {-1}
+        if (
+            not isinstance(topics, list)
+            or len(topics) < 2
+            or any(isinstance(topic, bool) or not isinstance(topic, Integral) for topic in topics)
+            or len(set(topics)) != len(topics)
+            or not set(topics) <= available
+        ):
+            raise ValueError(
+                "Mindestens zwei verschiedene vorhandene Themen auswählen, ohne Outlier."
+            )
+
+    def merge_topics(self, topics):
+        """Merge only the selection. Keep unaffected names aligned after BERTopic renumbers IDs."""
+        self.validate_merge(topics)
+        old_topics = [int(topic) for topic in self.result.model.topics_]
+        candidate = self._copy_model()
+        candidate.merge_topics(self.result.documents, topics_to_merge=topics)
+        new_topics = [int(topic) for topic in candidate.topics_]
+        if (
+            len(new_topics) != len(old_topics)
+            or len(set(new_topics) - {-1}) != len(set(old_topics) - {-1}) - len(topics) + 1
+        ):
+            raise ValueError("Die ausgewählten Themen konnten nicht zusammengeführt werden.")
+        mapping = {}
+        for before, after in zip(old_topics, new_topics):
+            if before in mapping and mapping[before] != after:
+                raise ValueError("Die Zuordnung der zusammengeführten Themen ist nicht eindeutig.")
+            mapping[before] = after
+        merged = {mapping[topic] for topic in topics}
+        if len(merged) != 1 or (-1 in mapping and mapping[-1] != -1):
+            raise ValueError("Outlier oder ausgewählte Themen wurden unerwartet verändert.")
+        if len({mapping[topic] for topic in mapping if topic not in topics}) != len(
+            set(old_topics) - set(topics)
+        ):
+            raise ValueError("Nicht ausgewählte Themen wurden unerwartet zusammengeführt.")
+        merged_topic = next(iter(merged))
+        info = candidate.get_topic_info()
+        names = {
+            mapping[topic]: label
+            for topic, label in self.topic_names.items()
+            if topic in mapping and topic not in topics
+        }
+        manual = {
+            mapping[topic]: label
+            for topic, label in self.manual_topic_names.items()
+            if topic in mapping and topic not in topics
+        }
+        pending = {
+            mapping[topic]
+            for topic in self.topics_needing_names
+            if topic in mapping and topic not in topics
+        } | {merged_topic}
+        self.result.model, self.result.topic_info = candidate, info
+        self.topic_names, self.manual_topic_names = names, manual
+        self.topics_needing_names = pending
+        self.names_need_refresh = True
+        self.topic_merges.append(
+            {"topics": list(topics), "merged_topic": merged_topic, "mapping": mapping}
+        )
+        self.original_topics = None
+        if self.naming_metadata:
+            self.naming_metadata = (
+                {**self.naming_metadata, "topic_count": len(names)} if names else {}
+            )

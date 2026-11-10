@@ -1,5 +1,6 @@
 """Validated HTTP request schemas, separate from domain configuration."""
 
+from typing import Annotated
 from pydantic import BaseModel, Field, SecretStr
 from server.services.analysis.topic_naming import DEFAULT_NAMING_MODEL
 
@@ -37,3 +38,12 @@ class SessionKeyRequest(BaseModel):
 
 class TopicReductionRequest(BaseModel):
     target: int = Field(ge=1, strict=True)
+
+
+class TopicMergeRequest(BaseModel):
+    topics: list[Annotated[int, Field(strict=True, ge=0)]] = Field(min_length=2)
+
+
+class TopicLabelRequest(BaseModel):
+    topic: int = Field(ge=0, strict=True)
+    label: str = Field(min_length=1, max_length=120)

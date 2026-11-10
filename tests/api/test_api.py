@@ -154,6 +154,100 @@ class WebApiTests(unittest.TestCase):
             ):
                 self.assertEqual(key_binding()[0], "local-test-key")
 
+    def test_manual_names_and_targeted_merge(self):
+        docs = [
+            text
+            for text in (
+                "katze hund tier futter",
+                "fussball sport stadion tor",
+                "computer software daten technik",
+            )
+            for _ in range(20)
+        ]
+        self.upload(pd.DataFrame({"text": docs}).to_csv(index=False))
+        self.client.post("/api/clean", headers=self.headers, json={"text_columns": ["text"]})
+        config = TrainingConfig(
+            ENGLISH_MODEL,
+            "Englisch",
+            n_neighbors=5,
+            n_components=2,
+            min_cluster_size=5,
+            representation_models=(),
+            ngram_range=(1, 1),
+        )
+        with patch("server.routes.modeling.encoder", return_value=OfflineEncoder()):
+            self.client.post("/api/train", headers=self.headers, json={"params": config.to_dict()})
+            self.assertEqual(self.wait()["status"], "completed")
+        analysis = spaces[self.token].analysis
+        available = sorted(set(analysis.result.model.topics_) - {-1})
+        self.assertGreaterEqual(len(available), 3)
+        untouched = available[-1]
+        response = self.client.post(
+            "/api/topics/label",
+            headers=self.headers,
+            json={"topic": untouched, "label": "  Mein Themenname  "},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        rows = self.client.get(f"/api/documents?topic={untouched}", headers=self.headers).json()[
+            "rows"
+        ]
+        self.assertTrue(all(row["Themenname"] == "Mein Themenname" for row in rows))
+        for body in (
+            {"topic": -1, "label": "Outlier geändert"},
+            {"topic": 0, "label": " "},
+            {"topic": 99999, "label": "Nicht vorhanden"},
+        ):
+            self.assertGreaterEqual(
+                self.client.post("/api/topics/label", headers=self.headers, json=body).status_code,
+                400,
+            )
+        for selection in ([0], [-1, 0], [0, 0], [0, 9999], [True, 1]):
+            self.assertGreaterEqual(
+                self.client.post(
+                    "/api/topics/merge", headers=self.headers, json={"topics": selection}
+                ).status_code,
+                400,
+            )
+        response = self.client.post(
+            "/api/topics/merge", headers=self.headers, json={"topics": available[:2]}
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.wait()["status"], "completed")
+        result = self.client.get("/api/results", headers=self.headers).json()
+        self.assertEqual(result["stats"]["topics"], len(available) - 1)
+        self.assertEqual(result["stats"]["documents"], 60)
+        self.assertIn("Mein Themenname", [row["Themenname"] for row in result["topics"]])
+        merged = result["topic_merges"][0]["merged_topic"]
+        self.client.post(
+            "/api/topics/label",
+            headers=self.headers,
+            json={"topic": merged, "label": "Gemeinsames Thema"},
+        )
+        self.assertFalse(
+            self.client.get("/api/results", headers=self.headers).json()["naming_needs_refresh"]
+        )
+        analysis.set_topic_names(
+            {topic: "KI-Name" for topic in set(analysis.result.model.topics_) if topic != -1},
+            "test-model",
+        )
+        self.assertIn("Gemeinsames Thema", analysis.named_topic_info().CustomName.tolist())
+        for kind in ("bars", "network", "similarity"):
+            chart = self.client.get("/api/charts/" + kind, headers=self.headers)
+            self.assertEqual(chart.status_code, 200, chart.text[:200])
+            self.assertIn("Gemeinsames Thema", chart.text)
+        with zipfile.ZipFile(
+            io.BytesIO(self.client.get("/api/export", headers=self.headers).content)
+        ) as archive:
+            self.assertEqual(
+                len(json.loads(archive.read("manifest.json"))["metadata"]["topic_merges"]), 1
+            )
+            self.assertIn(
+                "Gemeinsames Thema",
+                [row["topic_name"] for row in json.loads(archive.read("documents.json"))],
+            )
+        analysis.clear_topic_names()
+        self.assertEqual(analysis.manual_topic_names, {})
+
     def test_javascript_integer_one_remains_a_proportion_on_large_corpus(self):
         text = pd.DataFrame({"text": ["katze hund tier"] * 1001}).to_csv(index=False)
         self.upload(text)

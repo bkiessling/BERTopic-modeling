@@ -7,9 +7,15 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import Response
 import pandas as pd
 import plotly.express as px
-from server.runtime import workspace, analysis_required, run_job, records
+from server.runtime import workspace, analysis_required, run_job, records, idle
 from server.settings import key_binding
-from server.schemas import NamingRequest, OutlierRequest, TopicReductionRequest
+from server.schemas import (
+    NamingRequest,
+    OutlierRequest,
+    TopicReductionRequest,
+    TopicMergeRequest,
+    TopicLabelRequest,
+)
 from server.services.analysis.topic_table import build_topic_table, compute_topic_stats
 from server.services.analysis.document_table import build_document_table
 from server.services.analysis.export import build_result_archive
@@ -44,6 +50,8 @@ def results(x_workspace_id: Annotated[str, Header()]):
         "naming": analysis.naming_metadata,
         "naming_needs_refresh": analysis.names_need_refresh,
         "topic_reductions": analysis.topic_reductions,
+        "topic_merges": analysis.topic_merges,
+        "manual_topic_names": analysis.manual_topic_names,
         "can_restore": analysis.original_topics is not None,
     }
 
@@ -228,6 +236,37 @@ def name(body: NamingRequest, x_workspace_id: Annotated[str, Header()]):
     return run_job(state, "naming", task)
 
 
+@router.post("/api/topics/label")
+def set_label(body: TopicLabelRequest, x_workspace_id: Annotated[str, Header()]):
+    state = workspace(x_workspace_id)
+    with state.lock:
+        idle(state)
+        analysis = analysis_required(state)
+        try:
+            analysis.set_manual_topic_name(body.topic, body.label)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+    return {"message": "Themenname gespeichert."}
+
+
+@router.post("/api/topics/merge")
+def merge(body: TopicMergeRequest, x_workspace_id: Annotated[str, Header()]):
+    state = workspace(x_workspace_id)
+    analysis = analysis_required(state)
+    try:
+        analysis.validate_merge(body.topics)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+
+    def task(report):
+        report(20, "Führe ausgewählte Themen zusammen …")
+        with state.lock:
+            analysis.merge_topics(body.topics)
+        return "Themen zusammengeführt. Der neuen Gruppe kann jetzt ein Name gegeben werden."
+
+    return run_job(state, "merge", task)
+
+
 @router.post("/api/topics/reduce")
 def reduce_topics(body: TopicReductionRequest, x_workspace_id: Annotated[str, Header()]):
     state = workspace(x_workspace_id)
@@ -288,6 +327,8 @@ def export(x_workspace_id: Annotated[str, Header()]):
             "outlier_thresholds": analysis.outlier_thresholds,
             "topic_naming": analysis.naming_metadata,
             "topic_reductions": analysis.topic_reductions,
+            "topic_merges": analysis.topic_merges,
+            "manual_topic_names": analysis.manual_topic_names,
         },
     )
     return Response(

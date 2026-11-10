@@ -1642,3 +1642,41 @@ progress::-webkit-progress-value {
     align-items: stretch;
   }
 }
+
+.analysis-nav {
+  display: flex;
+  justify-content: center;
+  margin: -12px 0 28px;
+}
+.analysis-nav .segmented button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.refine-grid form {
+  display: grid;
+  gap: 14px;
+}
+.refine-grid form .button {
+  justify-self: start;
+}
+.refine-grid .field {
+  margin: 16px 0;
+}
+.refine-grid form .field {
+  margin: 0;
+}
+.stat-card > span .help {
+  margin-left: 5px;
+}
+@media (max-width: 540px) {
+  .analysis-nav .segmented {
+    width: 100%;
+  }
+  .analysis-nav .segmented button {
+    flex: 1;
+    padding: 10px 8px;
+    font-size: 11px;
+  }
+}

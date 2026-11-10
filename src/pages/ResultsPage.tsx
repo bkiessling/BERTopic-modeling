@@ -1,3 +1,4 @@
+import { ResultRefinements } from "../components/ResultRefinements";
 import helpText from "../content/help.de.json";
 import { useState } from "react";
 import { Plot } from "../charts/Plot";
@@ -6,14 +7,12 @@ import type { Row } from "../api";
 import {
   ArrowRight,
   ArrowLeft,
-  ArrowUpRight,
   FileSpreadsheet,
   Layers3,
   LoaderCircle,
   Search,
   Settings2,
   ChartScatter,
-  RotateCcw,
   CircleDot,
 } from "lucide-react";
 import {
@@ -26,9 +25,7 @@ import {
 } from "../components";
 export function ResultsPage() {
   const [showParameters, setShowParameters] = useState(false);
-  const [targetTopics, setTargetTopics] = useState(2);
   const {
-    caps,
     topWords,
     setTopWords,
     documentTopic,
@@ -37,11 +34,8 @@ export function ResultsPage() {
     setDocumentSort,
     descending,
     setDescending,
-    step,
     result,
-    error,
     resultTab,
-    setResultTab,
     setStep,
     chartKind,
     setChartKind,
@@ -56,15 +50,9 @@ export function ResultsPage() {
     setSearch,
     page,
     setPage,
-    threshold,
-    setThreshold,
-    setSettings,
-    namingModel,
     blocked,
-    startJob,
     download,
     topics,
-    keywords,
     options,
   } = useWorkbench();
   if (!result) return null;
@@ -128,7 +116,12 @@ export function ResultsPage() {
           },
         ].map((stat) => (
           <div className="stat-card" key={stat.label}>
-            <span>{stat.label}</span>
+            <span>
+              {stat.label}
+              {stat.label === "Outlier" && (
+                <Help title="Outlier">{helpText.outlierExplanation}</Help>
+              )}
+            </span>
             <strong>
               {stat.value}
               <span className="stat-icon">
@@ -138,135 +131,7 @@ export function ResultsPage() {
           </div>
         ))}
       </div>
-      <div className="results-toolbar">
-        <div className="segmented">
-          {[
-            { id: "topics", label: "Themenübersicht" },
-            { id: "charts", label: "Visualisierungen" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              className={resultTab === t.id ? "selected" : ""}
-              onClick={() => setResultTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <details className="card refine-card">
-        <summary>
-          <Settings2 size={17} />
-          <strong>Ergebnisse verbessern</strong>
-          <span>Outlier, Themen & Namen</span>
-        </summary>
-        <div className="refine-grid">
-          <div>
-            <h3>Outlier reduzieren</h3>
-            <p className="muted">
-              Änderungen aktualisieren Tabellen und Diagramme. Vorhandene
-              KI-Namen werden verworfen.
-            </p>
-            <Range
-              label="Schwellwert"
-              value={threshold}
-              min={0}
-              max={0.5}
-              step={0.01}
-              disabled={blocked}
-              onChange={setThreshold}
-              help={helpText.outliers}
-            />
-            <div className="button-row">
-              <button
-                className="button secondary"
-                disabled={blocked || !result.stats.outliers}
-                onClick={() => void startJob("/outliers", { threshold })}
-              >
-                Outlier zuordnen
-              </button>
-              <button
-                className="button secondary"
-                disabled={blocked || !result.can_restore}
-                onClick={() => void startJob("/outliers/restore")}
-              >
-                Zurücksetzen
-              </button>
-            </div>
-          </div>
-          <div>
-            <div className="card-title compact">
-              <h3>Themen reduzieren</h3>
-              <Help title="Themen reduzieren">{helpText.topicReduction}</Help>
-            </div>
-            <p className="muted">
-              Ähnliche Themen auf eine Zielanzahl zusammenfassen. Outlier werden
-              nicht mitgezählt.
-            </p>
-            <Field label="Zielanzahl Themen">
-              <input
-                type="number"
-                aria-label="Zielanzahl Themen"
-                min={1}
-                max={Math.max(1, result.stats.topics - 1)}
-                value={Math.min(
-                  targetTopics,
-                  Math.max(1, result.stats.topics - 1),
-                )}
-                disabled={blocked || result.stats.topics < 2}
-                onChange={(event) =>
-                  setTargetTopics(Number(event.target.value))
-                }
-              />
-            </Field>
-            <button
-              className="button secondary"
-              disabled={
-                blocked ||
-                result.stats.topics < 2 ||
-                !Number.isInteger(targetTopics) ||
-                targetTopics < 1
-              }
-              onClick={() =>
-                void startJob("/topics/reduce", {
-                  target: Math.min(targetTopics, result.stats.topics - 1),
-                })
-              }
-            >
-              Themen zusammenfassen
-            </button>
-            <p className="muted">
-              Themennamen und die bisherige Outlier-Zurücksetzung werden dabei
-              verworfen.
-            </p>
-          </div>
-        </div>
-        <div className="rename-section">
-          <div>
-            <h3>Themen neu benennen</h3>
-            <p className="muted">
-              Nach Outlier-Zuordnung oder Themenreduzierung die Namen neu
-              vergeben.
-            </p>
-            {result.naming_needs_refresh && (
-              <p className="naming-refresh">
-                Die Themenstruktur wurde geändert. Bitte Themen neu benennen.
-              </p>
-            )}
-          </div>
-          <button
-            className="button secondary"
-            disabled={blocked || !keywords.length}
-            onClick={() =>
-              caps?.key_present
-                ? void startJob("/name", { model: namingModel })
-                : setSettings(true)
-            }
-          >
-            Themen neu benennen
-          </button>
-        </div>
-      </details>
+      <ResultRefinements />
       {resultTab === "topics" && (
         <section className="card result-table">
           <div className="preview-heading">
@@ -278,7 +143,13 @@ export function ResultsPage() {
                   {result.naming.model}
                 </p>
               )}
-              <p>Thema −1 enthält Texte ohne stabile Clusterzuordnung.</p>
+              {!!Object.keys(result.manual_topic_names || {}).length && (
+                <p>
+                  Manuell angepasste Themennamen:{" "}
+                  {Object.keys(result.manual_topic_names).length}.
+                </p>
+              )}
+              <p>Thema −1 heißt immer Outlier.</p>
             </div>
             <span className="quiet-chip">{result.stats.topics} Themen</span>
           </div>
