@@ -108,6 +108,33 @@ class WebApiTests(unittest.TestCase):
             self.client.post("/api/openai/check", json={"model": "gpt-4.1-mini"}).status_code, 422
         )
 
+    def test_session_key_is_private_scoped_and_used_for_access_check(self):
+        secret = "test-only-session-credential"
+        with patch("server.routes.system.key_binding", return_value=("", "")):
+            response = self.client.post(
+                "/api/openai/key", headers=self.headers, json={"key": secret}
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn(secret, response.text)
+            own = self.client.get("/api/capabilities", headers=self.headers)
+            self.assertTrue(own.json()["key_present"])
+            self.assertNotIn(secret, own.text)
+            self.assertFalse(self.client.get("/api/capabilities").json()["key_present"])
+            self.assertNotIn(secret, self.client.get("/api/workspace", headers=self.headers).text)
+            self.assertNotIn(secret, repr(spaces[self.token]))
+            with patch("server.routes.system.check_model_access") as check:
+                self.client.post(
+                    "/api/openai/check", headers=self.headers, json={"model": "gpt-4.1-mini"}
+                )
+                check.assert_called_once_with(secret, "gpt-4.1-mini")
+        invalid = self.client.post(
+            "/api/openai/key", headers=self.headers, json={"key": "test key with spaces"}
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertNotIn("test key with spaces", invalid.text)
+        self.assertEqual(spaces[self.token].openai_key, secret)
+        self.assertEqual(self.client.post("/api/openai/key", json={"key": secret}).status_code, 422)
+
     def test_project_credentials_override_global_and_environment(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -202,6 +229,35 @@ class WebApiTests(unittest.TestCase):
             chart = self.client.get("/api/charts/" + kind, headers=self.headers)
             self.assertEqual(chart.status_code, 200, chart.text[:300])
             self.assertTrue(chart.json()["data"])
+        selected_topic = result["topics"][0]["Thema"]
+        filtered = self.client.get(
+            f"/api/documents?topic={selected_topic}&sort=Textbeitrag&descending=true",
+            headers=self.headers,
+        ).json()
+        self.assertTrue(filtered["rows"])
+        self.assertTrue(all(row["Thema"] == selected_topic for row in filtered["rows"]))
+        texts = [row["Textbeitrag"] for row in filtered["rows"]]
+        self.assertEqual(texts, sorted(texts, reverse=True))
+        examples = self.client.get(
+            "/api/documents?representative=true", headers=self.headers
+        ).json()
+        self.assertGreater(examples["total"], 0)
+        self.assertTrue(all(row["Repräsentativ"] for row in examples["rows"]))
+        empty = self.client.get(
+            "/api/documents?topic=999999&grouped=true", headers=self.headers
+        ).json()
+        self.assertEqual(empty["total"], 0)
+        self.assertEqual(empty["rows"], [])
+        self.assertEqual(
+            self.client.get("/api/documents?sort=unknown", headers=self.headers).status_code, 400
+        )
+        bars = self.client.get(
+            f"/api/charts/bars?topics={selected_topic}&top_words=3", headers=self.headers
+        ).json()
+        self.assertLessEqual(len(bars["data"][0]["x"]), 3)
+        self.assertEqual(bars["data"][0]["marker"]["color"], "#0C1754")
+        network = self.client.get("/api/charts/network", headers=self.headers).json()
+        self.assertGreaterEqual(network["layout"]["height"], 700)
         grouped = self.client.get("/api/documents?grouped=true", headers=self.headers).json()
         self.assertEqual(grouped["total"], 30)
         searched = self.client.get("/api/documents?search=computer", headers=self.headers).json()

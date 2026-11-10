@@ -53,10 +53,10 @@ Das lokale Training läuft als Hintergrundjob mit Fortschritt. Ungültige Parame
 ### 3. Ergebnisse
 
 - Themen, Keywords und optional generierte Themennamen.
-- Suchbare Dokumenttabelle mit Pagination und Gruppierung nach ID.
+- Dauerhaft sichtbare Texttabelle unter beiden Ergebnisansichten: Suche, Themenfilter, repräsentative Beiträge, Sortierung per Spaltenüberschrift, Pagination und Gruppierung nach ID.
 - Tatsächlich verwendete Trainingsparameter.
-- Kosinus-Ähnlichkeitsmatrix der häufigsten Themen, Keyword-Balken für bis zu vier Themen und Dokumentenkarte mit UMAP oder t-SNE.
-- Ausreißer reduzieren und ursprüngliche Zuordnungen wiederherstellen.
+- Netzwerk/Dokumentenprojektion mit UMAP oder t-SNE als erste Visualisierung, Kosinus-Ähnlichkeitsmatrix und blaue Keyword-Balken mit Themen-Multiselect und einstellbarer Keyword-Anzahl.
+- Outlier reduzieren und ursprüngliche Zuordnungen wiederherstellen.
 - ZIP-Export mit Dokumenten-/Thementabellen als CSV und JSON sowie Parametern und Paketversionen.
 
 Kosinus-Ähnlichkeit ist kein statistischer z-Wert. Keyword-Gewichte sind keine Wahrscheinlichkeiten. Eine zweidimensionale Dokumentenkarte ist explorativ zu interpretieren. Ein Seed garantiert keine hardwareübergreifend bitgleichen Ergebnisse.
@@ -71,13 +71,15 @@ Neue lokale Schlüssel in **`config/secrets.toml`** speichern:
 OPENAI_API_KEY = "DEIN_VOLLSTÄNDIGER_OPENAI_API_KEY"
 ```
 
+Alternativ den Schalter „Themen automatisch benennen“ aktivieren und den Key im Dialog eingeben. Dieser Key bleibt nur im Arbeitsspeicher des Python-Servers für den aktuellen Arbeitsbereich und hat dort Vorrang vor der Dateikonfiguration. Er wird nicht im Browser gespeichert und nach Serverneustart erneut benötigt. „Key übernehmen“ prüft noch keinen API-Zugriff; dafür „API-Zugriff prüfen“ verwenden.
+
 `config/secrets.example.toml` ist eine Vorlage ohne Schlüssel. Die echte Datei ist von Git ausgeschlossen. Alternativ sind `BERTOPIC_OPENAI_API_KEY` oder `OPENAI_API_KEY` als Umgebungsvariable möglich. Projektdatei hat Vorrang vor globaler Konfiguration in `~/.config/bertopic-workbench/secrets.toml`, danach folgen Umgebungsvariablen. Der Browser erhält nur Anwesenheit und Quellenname, **niemals den Schlüssel**. Keine API-Keys in React oder `VITE_*`-Variablen eintragen.
 
 **Umstieg von der alten App:** `python -m server` übernimmt eine vorhandene `.streamlit/secrets.toml` einmalig nach `config/secrets.toml` mit Dateirechten `0600`. Eine vorhandene neue Konfiguration wird niemals überschrieben; die alte Datei bleibt unverändert. Die Migrationshilfe benötigt kein Streamlit. Es gibt keine alte Streamlit-Anwendung oder entsprechende Laufzeitabhängigkeit mehr.
 
 Die Benennung sendet nur Themen-IDs, bis zu zehn Keywords je Thema, Sprache und Benennungsanweisungen an OpenAI. Originaldateien, Dokumenttexte, Dokument-IDs und Embeddings bleiben lokal. **Keywords können trotzdem Namen oder vertrauliche Begriffe enthalten.** `store=false` ist gesetzt; es gelten weiterhin die [API-Datenregeln](https://platform.openai.com/docs/guides/your-data).
 
-API-Kontrolle fragt nur Modell-Metadaten ab und generiert keine Antwort. Erfolg bestätigt nicht Guthaben oder Responses-Berechtigung. HTTP 401 bedeutet, dass der gefundene Wert abgelehnt wurde: echte aktive OpenAI-Platform-Keys statt Platzhaltern verwenden und angezeigte Quelle prüfen. API-Fehler erhalten das lokale Modell. Ein normaler UI-Rerender verursacht keine neue Benennung. Explizite erneute Benennung kann Kosten verursachen, auch wenn ein späteres Paket fehlschlägt. Nach Ausreißeränderungen werden alte KI-Namen verworfen.
+API-Kontrolle fragt nur Modell-Metadaten ab und generiert keine Antwort. Erfolg bestätigt nicht Guthaben oder Responses-Berechtigung. HTTP 401 bedeutet, dass der gefundene Wert abgelehnt wurde: echte aktive OpenAI-Platform-Keys statt Platzhaltern verwenden und angezeigte Quelle prüfen. API-Fehler erhalten das lokale Modell. Ein normaler UI-Rerender verursacht keine neue Benennung. Explizite erneute Benennung kann Kosten verursachen, auch wenn ein späteres Paket fehlschlägt. Nach Outlieränderungen werden alte KI-Namen verworfen.
 
 ## Entwicklung und Tests
 

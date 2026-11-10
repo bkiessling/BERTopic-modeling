@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useWorkbench } from "../context/WorkbenchContext";
 import type { Row } from "../api";
 import { api, post } from "../api";
@@ -6,6 +7,7 @@ import { Field, Select } from "./index";
 export function OpenAIConnectionDialog() {
   const {
     token,
+    saveSessionKey,
     caps,
     busy,
     error,
@@ -17,6 +19,7 @@ export function OpenAIConnectionDialog() {
     perform,
     options,
   } = useWorkbench();
+  const [key, setKey] = useState("");
   return (
     <div className="modal-backdrop" onClick={() => setSettings(false)}>
       <section
@@ -52,6 +55,40 @@ export function OpenAIConnectionDialog() {
               : "Kein API-Key hinterlegt"}
           </span>
         </div>
+        <form
+          className="session-key-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void perform("key", async () => {
+              await saveSessionKey(key);
+              setKey("");
+              setNotice(
+                "API-Key für diesen Arbeitsbereich hinterlegt; Zugriff noch nicht geprüft.",
+              );
+            });
+          }}
+        >
+          <Field
+            label={caps?.key_present ? "API-Key ersetzen" : "API-Key eingeben"}
+          >
+            <input
+              type="password"
+              aria-label="OpenAI-API-Key"
+              autoComplete="off"
+              spellCheck={false}
+              value={key}
+              onChange={(event) => setKey(event.target.value)}
+              placeholder="API-Key"
+            />
+          </Field>
+          <button className="button primary" disabled={!key.trim() || !!busy}>
+            Key übernehmen
+          </button>
+          <p className="muted">
+            Nur im Arbeitsspeicher des Servers für diesen Arbeitsbereich. Nach
+            Serverneustart erneut eingeben.
+          </p>
+        </form>
         <Field label="Modell für Themennamen">
           <Select
             label="OpenAI-Modell"

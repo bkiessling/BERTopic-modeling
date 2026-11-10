@@ -6,12 +6,18 @@ export function MultiSelect({
   options,
   onChange,
   disabled = false,
+  itemLabel = "Textspalte",
+  placeholder = "Textspalten auswählen",
+  maxSelections,
 }: {
   label: string;
   values: string[];
   options: string[];
   onChange: (values: string[]) => void;
   disabled?: boolean;
+  itemLabel?: string;
+  placeholder?: string;
+  maxSelections?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -33,6 +39,12 @@ export function MultiSelect({
     return () => document.removeEventListener("pointerdown", outside);
   }, [open]);
   function toggle(value: string) {
+    if (
+      !values.includes(value) &&
+      maxSelections &&
+      values.length >= maxSelections
+    )
+      return;
     onChange(
       values.includes(value)
         ? values.filter((item) => item !== value)
@@ -63,9 +75,7 @@ export function MultiSelect({
           setQuery("");
         }}
       >
-        <span>
-          {values.length ? values.join(", ") : "Textspalten auswählen"}
-        </span>
+        <span>{values.length ? values.join(", ") : placeholder}</span>
         <span className="selection-count">{values.length}</span>
         <ChevronDown size={16} />
       </button>
@@ -73,14 +83,18 @@ export function MultiSelect({
         <div
           className="multiselect-panel"
           role="group"
-          aria-label="Textspalten auswählen"
+          aria-label={placeholder}
         >
           <input
             ref={search}
             className="multiselect-search"
             type="search"
-            aria-label="Textspalten suchen"
-            placeholder="Spaltenname eingeben …"
+            aria-label={
+              itemLabel === "Textspalte"
+                ? "Textspalten suchen"
+                : `${label} suchen`
+            }
+            placeholder="Suchen …"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -101,7 +115,12 @@ export function MultiSelect({
               <label className="multiselect-option" key={option}>
                 <input
                   type="checkbox"
-                  aria-label={`Textspalte ${option}`}
+                  aria-label={`${itemLabel} ${option}`}
+                  disabled={
+                    !values.includes(option) &&
+                    !!maxSelections &&
+                    values.length >= maxSelections
+                  }
                   checked={values.includes(option)}
                   onChange={() => toggle(option)}
                 />
@@ -111,7 +130,7 @@ export function MultiSelect({
           </div>
           {!matches.length && (
             <p className="multiselect-empty">
-              Keine passende Textspalte gefunden.
+              Keine passenden Einträge gefunden.
             </p>
           )}
         </div>

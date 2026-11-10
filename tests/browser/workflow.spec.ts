@@ -95,6 +95,12 @@ test("real API: import, clean, train, all charts, search, download, restore", as
     buffer: Buffer.from(csv),
   });
   await expect(page.getByText("60 Zeilen · 3 Spalten")).toBeVisible();
+  await expect(page.locator(".raw-preview tbody tr")).toHaveCount(3);
+  await expect(page.locator(".raw-preview th")).toHaveText([
+    "id",
+    "text",
+    "notes",
+  ]);
   const initialPreview = page.locator(".preview-card");
   await expect(initialPreview.locator("th")).toHaveText(["ID"]);
   await expect(
@@ -209,7 +215,20 @@ test("real API: import, clean, train, all charts, search, download, restore", as
   );
   await page.getByRole("button", { name: "KeyBERT", exact: true }).click();
   await page.getByRole("button", { name: "MMR", exact: true }).click();
-  await expect(page.getByLabel("Themen mit OpenAI benennen")).toBeDisabled();
+  await page.getByLabel("Themen mit OpenAI benennen").click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page
+    .getByLabel("OpenAI-API-Key", { exact: true })
+    .fill("test-only-workspace-key");
+  await page
+    .getByRole("button", { name: "Key übernehmen", exact: true })
+    .click();
+  await expect(
+    page.getByText("API-Key erkannt · Aktueller Arbeitsbereich"),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByLabel("Themen mit OpenAI benennen")).toBeChecked();
+  await page.getByLabel("Themen mit OpenAI benennen").uncheck();
   const tiles = page.locator(".model-top-grid > .card");
   await expect(tiles).toHaveCount(3);
   const left = await tiles.nth(0).boundingBox(),
@@ -264,17 +283,52 @@ test("real API: import, clean, train, all charts, search, download, restore", as
     .getByRole("button", { name: "Visualisierungen", exact: true })
     .click();
   await expect(page.locator(".js-plotly-plot")).toBeVisible({ timeout: 30000 });
+  await expect(
+    page.getByRole("button", { name: "Netzwerk", exact: true }),
+  ).toHaveClass("selected");
+  await expect(page.locator(".documents-card")).toBeVisible();
   await page.getByRole("button", { name: "Top-Keywords", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Themen für Top-Keywords", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Anzahl Keywords", { exact: true }).fill("3");
   await expect(page.locator(".js-plotly-plot")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Dokumentenkarte", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Netzwerk", exact: true }).click();
   await expect(page.locator(".js-plotly-plot")).toBeVisible();
   await page.screenshot({
     path: info.outputPath("chart-desktop.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Textbeiträge", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Textbeiträge", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Modellparameter anzeigen", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Verwendete Modellparameter" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Modellparameter anzeigen", exact: true })
+    .click();
+  const filter = page.getByLabel("Nach Thema filtern", { exact: true });
+  await filter.selectOption({ index: 1 });
+  await expect(page.locator(".documents-card tbody tr")).toHaveCount(20);
+  await page
+    .locator(".documents-card")
+    .getByRole("button", { name: "Textbeitrag", exact: false })
+    .click();
+  await expect(
+    page.locator('.documents-card th[aria-sort="ascending"]'),
+  ).toContainText("Textbeitrag");
+  await filter.selectOption("");
+  await page.getByLabel("Nur repräsentative Beiträge", { exact: true }).check();
+  await expect(
+    page.locator(".documents-card tbody tr").first().locator("td").last(),
+  ).toHaveText("Ja");
+  await page
+    .getByLabel("Nur repräsentative Beiträge", { exact: true })
+    .uncheck();
   await page.getByLabel("Textbeiträge durchsuchen").fill("computer");
   await expect(page.getByText(/20 Einträge/)).toBeVisible();
   const downloadPromise = page.waitForEvent("download");

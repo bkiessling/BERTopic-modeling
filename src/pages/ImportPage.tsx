@@ -100,6 +100,16 @@ export function ImportPage() {
               <Check size={18} />
             </div>
           )}
+          {uploaded && !cleaned && (
+            <div className="raw-preview">
+              <h3>Importvorschau</h3>
+              <p className="muted">
+                Die ersten drei Zeilen mit allen Spalten. Stimmen Trennzeichen
+                und Inhalte?
+              </p>
+              <DataTable rows={uploaded.preview.slice(0, 3)} />
+            </div>
+          )}
           {file?.name.toLowerCase().endsWith(".csv") && (
             <Field label="CSV-Trennzeichen">
               <Select

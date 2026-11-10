@@ -20,6 +20,7 @@ import { Field, Help, Range, Select } from "../components";
 export function ModelingPage() {
   const {
     caps,
+    requestNaming,
     step,
     setStep,
     cleaned,
@@ -160,8 +161,8 @@ export function ModelingPage() {
                   aria-label="Themen mit OpenAI benennen"
                   type="checkbox"
                   checked={params.name_topics}
-                  disabled={!caps?.key_present || blocked}
-                  onChange={(e) => change({ name_topics: e.target.checked })}
+                  disabled={blocked}
+                  onChange={(e) => requestNaming(e.target.checked)}
                 />
                 <span />
               </label>
@@ -171,7 +172,7 @@ export function ModelingPage() {
                 className="button secondary"
                 onClick={() => setSettings(true)}
               >
-                Verbindung & Modell
+                Modell
               </button>
             </div>
           </section>

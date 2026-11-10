@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Header, HTTPException
 from server.runtime import Workspace, spaces, spaces_lock, workspace, records
 from server.settings import key_binding
-from server.schemas import NamingRequest
+from server.schemas import NamingRequest, SessionKeyRequest
 from server.services.modeling.configuration import MODEL_OPTIONS, get_default_params
 from server.services.analysis.topic_naming import (
     NAMING_MODELS,
@@ -25,8 +25,10 @@ def health():
 
 
 @router.get("/api/capabilities")
-def capabilities():
+def capabilities(x_workspace_id: Annotated[str | None, Header()] = None):
     key, source = key_binding()
+    if x_workspace_id and workspace(x_workspace_id).openai_key:
+        key, source = workspace(x_workspace_id).openai_key, "Aktueller Arbeitsbereich"
     return {
         "models": [
             {
@@ -109,11 +111,22 @@ def get_workspace(x_workspace_id: Annotated[str, Header()]):
 
 @router.post("/api/openai/check")
 def check_openai(body: NamingRequest, x_workspace_id: Annotated[str, Header()]):
-    workspace(x_workspace_id)
+    state = workspace(x_workspace_id)
     try:
-        check_model_access(key_binding()[0], body.model)
+        check_model_access(state.openai_key or key_binding()[0], body.model)
     except TopicNamingError as exc:
         raise HTTPException(400, str(exc)) from None
     return {
         "message": "Key akzeptiert; Modell sichtbar. Responses-Berechtigung und Guthaben werden beim Benennen geprüft."
     }
+
+
+@router.post("/api/openai/key")
+def set_session_key(body: SessionKeyRequest, x_workspace_id: Annotated[str, Header()]):
+    state = workspace(x_workspace_id)
+    key = body.key.get_secret_value().strip()
+    if not key or len(key) > 512 or any(c.isspace() for c in key):
+        raise HTTPException(400, "Bitte einen vollständigen API-Key ohne Leerzeichen eingeben.")
+    with state.lock:
+        state.openai_key = key
+    return {"key_present": True, "key_source": "Aktueller Arbeitsbereich"}

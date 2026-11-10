@@ -1,6 +1,6 @@
 """Validated HTTP request schemas, separate from domain configuration."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 from server.services.analysis.topic_naming import DEFAULT_NAMING_MODEL
 
 
@@ -29,3 +29,7 @@ class NamingRequest(BaseModel):
 
 class OutlierRequest(BaseModel):
     threshold: float = Field(0.05, ge=0, le=0.5)
+
+
+class SessionKeyRequest(BaseModel):
+    key: SecretStr

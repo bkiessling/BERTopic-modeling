@@ -5,7 +5,7 @@ import numpy as np
 
 def reduce_outliers(topic_model, docs, embeddings, threshold):
     if not 0 <= threshold <= 1:
-        raise ValueError("Der Ausreißerschwellwert muss zwischen 0 und 1 liegen.")
+        raise ValueError("Der Outlier-Schwellwert muss zwischen 0 und 1 liegen.")
     if -1 not in topic_model.topics_:
         return False
     new_topics = topic_model.reduce_outliers(

@@ -44,7 +44,7 @@ def _plot_barcharts(
                 y=terms,
                 orientation="h",
                 showlegend=False,
-                marker=dict(color="#1f77b4"),
+                marker=dict(color="#0C1754"),
                 hovertemplate="<b>%{y}</b><br>Relevanz: %{x:.2f}<extra></extra>",
             ),
             row=row,

@@ -31,7 +31,7 @@ def train(body: TrainRequest, x_workspace_id: Annotated[str, Header()]):
             raise HTTPException(400, "Unvollständige Modellparameter.") from None
         if config.embedding_model not in MODEL_OPTIONS:
             errors.append("Ein Modell aus der Auswahlliste verwenden.")
-        if config.name_topics and not key_binding()[0]:
+        if config.name_topics and not (state.openai_key or key_binding()[0]):
             errors.append("Für die KI-Benennung fehlt ein OpenAI-API-Key.")
         if errors:
             raise HTTPException(400, "\n".join(errors))
@@ -53,7 +53,7 @@ def train(body: TrainRequest, x_workspace_id: Annotated[str, Header()]):
                 labels = name_topics(
                     topic_keywords(result.model),
                     config.language,
-                    key_binding()[0],
+                    (state.openai_key or key_binding()[0]),
                     config.naming_model,
                 )
                 analysis.set_topic_names(labels, config.naming_model)

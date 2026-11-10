@@ -24,6 +24,7 @@ def records(frame):
 
 @dataclass
 class Workspace:
+    openai_key: str = field(default="", repr=False)
     raw: pd.DataFrame | None = None
     file_name: str = ""
     cleaned: pd.DataFrame | None = None

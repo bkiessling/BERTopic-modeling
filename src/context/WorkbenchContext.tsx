@@ -33,7 +33,7 @@ function useWorkbenchState() {
     [stopwords, setStopwords] = useState(""),
     [file, setFile] = useState<File | null>(null);
   const [resultTab, setResultTab] = useState("topics"),
-    [chartKind, setChartKind] = useState("similarity"),
+    [chartKind, setChartKind] = useState("network"),
     [chart, setChart] = useState<any>(null),
     [chartError, setChartError] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<number[]>([]),
@@ -46,6 +46,12 @@ function useWorkbenchState() {
     [threshold, setThreshold] = useState(0.05),
     [settings, setSettings] = useState(false),
     [namingModel, setNamingModel] = useState("gpt-4.1-mini");
+  const [topWords, setTopWords] = useState(5),
+    [documentTopic, setDocumentTopic] = useState(""),
+    [documentSort, setDocumentSort] = useState("ID"),
+    [descending, setDescending] = useState(false),
+    [representative, setRepresentative] = useState(false),
+    [pendingNaming, setPendingNaming] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null),
     completed = useRef(false),
     initializing = useRef<Promise<Row> | null>(null);
@@ -54,6 +60,9 @@ function useWorkbenchState() {
   const loadResults = useCallback(async (id: string) => {
     const value = await api("/results", id);
     setResult(value);
+    setPage(0);
+    setDocumentTopic("");
+    setDocuments(null);
     setSelectedTopics(
       (value.topics as Row[])
         .filter((t) => t.Thema !== -1)
@@ -67,7 +76,7 @@ function useWorkbenchState() {
     let live = true;
     if (!initializing.current)
       initializing.current = (async () => {
-        const capability = await api("/capabilities", "");
+        let capability = await api("/capabilities", "");
         let id = localStorage.getItem("themenstudio-workspace") || "",
           restored: Row | null = null;
         if (id) {
@@ -81,6 +90,7 @@ function useWorkbenchState() {
           id = (await api("/workspaces", "", { method: "POST" })).id;
           localStorage.setItem("themenstudio-workspace", id);
         }
+        capability = await api("/capabilities", id);
         return { capability, id, restored };
       })();
     initializing.current
@@ -150,11 +160,12 @@ function useWorkbenchState() {
     };
   }, [active, token, loadResults]);
   useEffect(() => {
-    if (!result || step !== 2 || resultTab !== "documents") return;
+    if (!result || step !== 2) return;
     let live = true;
+    setDocuments(null);
     const timer = setTimeout(() => {
       api(
-        `/documents?page=${page}&search=${encodeURIComponent(search)}&grouped=${grouped}`,
+        `/documents?page=${page}&search=${encodeURIComponent(search)}&grouped=${grouped}${documentTopic !== "" ? `&topic=${encodeURIComponent(documentTopic)}` : ""}&sort=${encodeURIComponent(documentSort)}&descending=${descending}&representative=${representative}`,
         token,
       )
         .then((data) => {
@@ -168,7 +179,19 @@ function useWorkbenchState() {
       live = false;
       clearTimeout(timer);
     };
-  }, [result, step, resultTab, page, search, grouped, token, revision]);
+  }, [
+    result,
+    step,
+    page,
+    search,
+    grouped,
+    token,
+    revision,
+    documentTopic,
+    documentSort,
+    descending,
+    representative,
+  ]);
   useEffect(() => {
     if (!result || step !== 2 || resultTab !== "charts") return;
     let live = true;
@@ -176,7 +199,7 @@ function useWorkbenchState() {
     setChartError("");
     if (chartKind === "bars" && !selectedTopics.length) return;
     api(
-      `/charts/${chartKind}?topics=${selectedTopics.join(",")}&method=${method}`,
+      `/charts/${chartKind}?topics=${selectedTopics.join(",")}&method=${method}&top_words=${topWords}`,
       token,
     )
       .then((data) => {
@@ -195,16 +218,20 @@ function useWorkbenchState() {
     chartKind,
     selectedTopics,
     method,
+    topWords,
     token,
     revision,
   ]);
   useEffect(() => {
-    if (!settings) return;
+    if (!settings) {
+      setPendingNaming(false);
+      return;
+    }
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setSettings(false);
       if (event.key === "Tab") {
         const items = document.querySelectorAll<HTMLElement>(
-          "[role=dialog] button:not(:disabled),[role=dialog] select:not(:disabled),[role=dialog] a[href]",
+          "[role=dialog] input:not(:disabled),[role=dialog] button:not(:disabled),[role=dialog] select:not(:disabled),[role=dialog] a[href]",
         );
         const first = items[0],
           last = items[items.length - 1];
@@ -220,6 +247,18 @@ function useWorkbenchState() {
     document.addEventListener("keydown", escape);
     return () => document.removeEventListener("keydown", escape);
   }, [settings]);
+  function requestNaming(enabled: boolean) {
+    if (enabled && !caps?.key_present) {
+      setPendingNaming(true);
+      setSettings(true);
+    } else change({ name_topics: enabled });
+  }
+  async function saveSessionKey(key: string) {
+    await api("/openai/key", token, post({ key }));
+    setCaps(await api("/capabilities", token));
+    if (pendingNaming) change({ name_topics: true });
+    setPendingNaming(false);
+  }
   async function perform(name: string, task: () => Promise<void>) {
     setBusy(name);
     setError("");
@@ -411,6 +450,18 @@ function useWorkbenchState() {
     idPreviewColumn,
     sourcePreview,
     options,
+    topWords,
+    setTopWords,
+    documentTopic,
+    setDocumentTopic,
+    documentSort,
+    setDocumentSort,
+    descending,
+    setDescending,
+    representative,
+    setRepresentative,
+    requestNaming,
+    saveSessionKey,
   };
 }
 const Context = createContext<ReturnType<typeof useWorkbenchState> | null>(

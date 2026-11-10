@@ -21,3 +21,11 @@ Die Anwendung besteht ausschließlich aus React/TypeScript und einem Python-/Fas
 ## Warum React?
 
 Für den gewünschten kontrollierten Workflow mit Tabellen, Plotly und Hintergrundjobs passt React gut. Svelte wäre ebenfalls geeignet; es würde die Python-Modellierung nicht ersetzen. Die Trennung der Oberfläche von Training, Ergebniszustand, API und Jobverwaltung ist der entscheidende Architekturgewinn.
+
+## Ergebnisansicht
+
+Zwei Ansichten: Themenübersicht und Visualisierungen. Die Textbeiträge bleiben darunter sichtbar und bieten Suche, Themenfilter, repräsentative Beiträge und Sortierung über Spaltenüberschriften. „Ergebnisse verbessern“ steht oberhalb der Ansicht; Trainingsparameter sind über das kleine Symbol am Ergebnis-Titel erreichbar.
+
+Visualisierungen starten mit dem höheren Netzwerk. Top-Keywords bietet ein durchsuchbares Multiselect für bis zu vier Themen und einen Regler für die Keyword-Anzahl (begrenzt durch die beim Training gespeicherten Keywords). Die Balken verwenden `#0C1754`.
+
+Die Importvorschau zeigt unmittelbar nach Upload drei Originalzeilen aller Spalten; nach Bereinigung wird ausschließlich die bereinigte Vorschau angezeigt. API-Keys können beim Einschalten der Benennung im Dialog für den aktuellen Arbeitsbereich hinterlegt werden.

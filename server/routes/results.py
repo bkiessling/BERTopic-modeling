@@ -48,7 +48,14 @@ def results(x_workspace_id: Annotated[str, Header()]):
 
 @router.get("/api/documents")
 def documents(
-    x_workspace_id: Annotated[str, Header()], page: int = 0, search: str = "", grouped: bool = False
+    x_workspace_id: Annotated[str, Header()],
+    page: int = 0,
+    search: str = "",
+    grouped: bool = False,
+    topic: int | None = None,
+    sort: str = "ID",
+    descending: bool = False,
+    representative: bool = False,
 ):
     state = workspace(x_workspace_id)
     analysis = analysis_required(state)
@@ -58,8 +65,18 @@ def documents(
         analysis.result.model.topics_,
         analysis.named_topic_info(),
         "Textbeitrag",
-        "ID" if grouped else "Textbeitrag",
+        "Textbeitrag",
     )
+    # BERTopic's representative documents are examples, not a confidence ranking.
+    examples = analysis.result.model.representative_docs_ or {}
+    frame["Repräsentativ"] = [
+        text in examples.get(int(topic_id), [])
+        for text, topic_id in zip(frame.Textbeitrag, frame.Thema)
+    ]
+    if topic is not None:
+        frame = frame[frame.Thema == topic]
+    if representative:
+        frame = frame[frame["Repräsentativ"]]
     if search:
         mask = (
             frame.astype(str)
@@ -67,6 +84,29 @@ def documents(
             .any(axis=1)
         )
         frame = frame[mask]
+    if grouped:
+        frame = (
+            frame.groupby("ID", sort=False, dropna=False)
+            .agg(
+                {
+                    "Thema": lambda values: sorted(set(values)),
+                    "Textbeitrag": lambda values: " | ".join(values),
+                    "Keywords": lambda values: list(
+                        dict.fromkeys(word for words in values for word in words)
+                    ),
+                    "Repräsentativ": "any",
+                }
+            )
+            .reset_index()
+        )
+    if sort not in frame.columns:
+        raise HTTPException(400, "Unbekannte Sortierspalte.")
+    if sort in ("Keywords",) or (grouped and sort == "Thema"):
+        frame = frame.sort_values(
+            sort, key=lambda values: values.astype(str), ascending=not descending, kind="stable"
+        )
+    else:
+        frame = frame.sort_values(sort, ascending=not descending, kind="stable")
     page = max(0, page)
     return {
         "rows": records(frame.iloc[page * 50 : (page + 1) * 50]),
@@ -109,7 +149,12 @@ def chart(
             for topic in selected
         ]
         figure = _plot_barcharts(
-            model, selected, labels, min(30, max(1, top_words)), 1000, 280 * len(selected)
+            model,
+            selected,
+            labels,
+            min(30, max(1, top_words)),
+            1000,
+            max(420, (100 + min(30, max(1, top_words)) * 26) * len(selected)),
         )
     elif kind == "network":
         coords = state.coordinates
@@ -138,17 +183,17 @@ def chart(
             color="Thema",
             opacity=0.7,
             color_discrete_sequence=[
-                "#7560dd",
+                "#0C1754",
                 "#56a998",
                 "#dbab67",
                 "#e48599",
-                "#6d99cd",
+                "#2671C6",
                 "#a68ac8",
             ],
         )
         figure.update_traces(marker={"size": 7}, hovertemplate="%{fullData.name}<extra></extra>")
         figure.update_layout(
-            xaxis_visible=False, yaxis_visible=False, height=540, legend={"orientation": "h"}
+            xaxis_visible=False, yaxis_visible=False, height=760, legend={"orientation": "h"}
         )
     else:
         raise HTTPException(404, "Diagramm nicht gefunden.")
@@ -165,7 +210,7 @@ def chart(
 def name(body: NamingRequest, x_workspace_id: Annotated[str, Header()]):
     state = workspace(x_workspace_id)
     analysis = analysis_required(state)
-    if not key_binding()[0]:
+    if not (state.openai_key or key_binding()[0]):
         raise HTTPException(400, "Kein OpenAI-API-Key vorhanden.")
 
     def task(report):
@@ -173,7 +218,7 @@ def name(body: NamingRequest, x_workspace_id: Annotated[str, Header()]):
         labels = name_topics(
             topic_keywords(analysis.result.model),
             analysis.result.config.language,
-            key_binding()[0],
+            (state.openai_key or key_binding()[0]),
             body.model,
         )
         analysis.set_topic_names(labels, body.model)
@@ -187,9 +232,9 @@ def outliers(body: OutlierRequest, x_workspace_id: Annotated[str, Header()]):
     analysis = analysis_required(state)
 
     def task(report):
-        report(20, "Ordne Ausreißer neu zu …")
+        report(20, "Ordne Outlier neu zu …")
         if not analysis.reduce_outliers(body.threshold):
-            return "Keine Ausreißer vorhanden."
+            return "Keine Outlier vorhanden."
 
     return run_job(state, "outliers", task)
 

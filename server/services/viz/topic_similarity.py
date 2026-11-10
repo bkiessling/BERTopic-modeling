@@ -11,7 +11,7 @@ def plot_topic_similarity(topic_model, top_n_topics: int = 20, topic_names=None)
     selected = info[info.Topic != -1].nlargest(top_n_topics, "Count")
     if selected.empty:
         fig = go.Figure()
-        fig.add_annotation(text="Keine Themen außer Ausreißern vorhanden.", showarrow=False)
+        fig.add_annotation(text="Keine Themen außer Outlier vorhanden.", showarrow=False)
         return fig
 
     # BERTopic stores embeddings in ascending topic-ID order, including -1.
