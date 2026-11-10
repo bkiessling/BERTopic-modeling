@@ -150,4 +150,4 @@ Unter **Ergebnisse verbessern** gibt es zusätzlich:
 
 **Outlier (−1)** heißen immer „Outlier“. Sie sind von manueller und KI-Benennung sowie gezielter Zusammenführung ausgeschlossen. Hilfe-Buttons an der Outlier-Kennzahl und der Outlier-Bearbeitung erklären die Bedeutung. Manuelle Namen und Zusammenführungen werden im Export dokumentiert; wie die übrigen Ergebnisse liegen sie bis zum Serverneustart im Arbeitsspeicher.
 
-Das Laubenvogel-SVG in `public/laubenvogel.svg` wird als Browser-Icon und vor dem App-Titel verwendet.
+Das Schwalben-SVG in `public/schwalbe.svg` wird als Browser-Icon und vor dem App-Titel verwendet.

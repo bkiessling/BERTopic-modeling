@@ -1687,17 +1687,15 @@ progress::-webkit-progress-value {
   gap: 12px;
 }
 .app-mascot {
-  width: 46px;
-  height: 46px;
+  width: 0.75em;
+  height: 0.75em;
+  width: 1cap;
+  height: 1cap;
   flex-shrink: 0;
   object-fit: contain;
 }
 @media (max-width: 540px) {
   .app-title {
     gap: 8px;
-  }
-  .app-mascot {
-    width: 34px;
-    height: 34px;
   }
 }

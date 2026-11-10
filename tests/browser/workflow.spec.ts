@@ -34,13 +34,10 @@ test("clean desktop and mobile import, connection dialog", async ({
     }),
   ).toBeVisible();
   await expect(page).toHaveTitle("#NDRfragt Themenfinder");
-  await expect(page.locator("h1 img")).toHaveAttribute(
-    "src",
-    "/laubenvogel.svg",
-  );
+  await expect(page.locator("h1 img")).toHaveAttribute("src", "/schwalbe.svg");
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
     "href",
-    "/laubenvogel.svg",
+    "/schwalbe.svg",
   );
   await expect(
     page.getByText("BERTopic workspace", { exact: true }),
@@ -67,6 +64,12 @@ test("clean desktop and mobile import, connection dialog", async ({
       (first!.x + last!.x + last!.width) / 2 - (nav!.x + nav!.width / 2),
     ),
   ).toBeLessThan(1);
+  const title = page.locator("h1 span");
+  const icon = page.locator("h1 img");
+  const titleBox = await title.boundingBox();
+  const iconBox = await icon.boundingBox();
+  expect(iconBox!.height).toBeLessThanOrEqual(titleBox!.height);
+  expect(iconBox!.x + iconBox!.width).toBeLessThan(titleBox!.x);
   await page.screenshot({
     path: info.outputPath("import-desktop.png"),
     fullPage: true,

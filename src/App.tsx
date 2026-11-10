@@ -63,7 +63,7 @@ export default function App() {
             <h1 className="app-title">
               <img
                 className="app-mascot"
-                src="/laubenvogel.svg"
+                src="/schwalbe.svg"
                 alt=""
                 aria-hidden="true"
               />
